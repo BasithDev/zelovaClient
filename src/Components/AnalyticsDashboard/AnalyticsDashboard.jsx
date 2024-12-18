@@ -6,7 +6,8 @@ import html2canvas from 'html2canvas';
 import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import PropTypes from 'prop-types';
 
-const AnalyticsDashboard = ({ fetchReports, exportReportToPDF, exportReportToExcel, initialReportType = 'profit' }) => {
+const 
+AnalyticsDashboard = ({ fetchReports, exportReportToPDF, exportReportToExcel, initialReportType = 'profit' }) => {
     const [reports, setReports] = useState([]);
     const [reportType, setReportType] = useState(initialReportType);
     const [timeRange, setTimeRange] = useState('month');
@@ -285,7 +286,6 @@ const AnalyticsDashboard = ({ fetchReports, exportReportToPDF, exportReportToExc
     );
 };
 AnalyticsDashboard.propTypes = {
-    reports: PropTypes.array.isRequired,
     fetchReports: PropTypes.func.isRequired,
     exportReportToPDF: PropTypes.func.isRequired,
     exportReportToExcel: PropTypes.func.isRequired,

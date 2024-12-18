@@ -255,14 +255,14 @@ const Dashboard = () => {
                                         </td>
                                         <td className="py-4 px-4">
                                             <div>
-                                                <span className="font-medium block">{restaurant.vendorId.fullname}</span>
-                                                <span className="text-sm text-gray-500">{restaurant.vendorId.email}</span>
+                                                <span className="font-medium block">{restaurant.vendorId?.fullname}</span>
+                                                <span className="text-sm text-gray-500">{restaurant.vendorId?.email}</span>
                                             </div>
                                         </td>
                                         <td className="py-4 px-4">
                                             <div>
                                                 <span className="block">Restaurant: {restaurant.phone}</span>
-                                                <span className="text-sm text-gray-500">Owner : {restaurant.vendorId.phoneNumber}</span>
+                                                <span className="text-sm text-gray-500">Owner : {restaurant.vendorId?.phoneNumber}</span>
                                             </div>
                                         </td>
                                         <td className="py-4 px-4">

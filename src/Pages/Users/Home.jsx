@@ -197,11 +197,6 @@ const Home = () => {
                         >
                             {restaurantData.length === 0 ? (
                                 <div className="col-span-full flex flex-col justify-center items-center p-8">
-                                    <img 
-                                        src="/no-restaurant.svg" 
-                                        alt="No restaurants" 
-                                        className="w-48 h-48 mb-4 opacity-50"
-                                    />
                                     <h3 className="text-xl font-semibold text-gray-800 mb-2">No Restaurants Found</h3>
                                     <p className="text-gray-600 text-center">{`Sorry, our service is currently unavailable in your area. We're working on expanding our reach!`}</p>
                                 </div>

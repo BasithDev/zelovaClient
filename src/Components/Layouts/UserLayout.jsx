@@ -11,7 +11,7 @@ import { logoutUser } from "../../Redux/slices/user/authUserSlice";
 import { fetchUserData } from '../../Redux/slices/user/userDataSlice';
 import { useDispatch, useSelector } from "react-redux";
 import Cookies from "js-cookie";
-import { MdHome, MdStore } from "react-icons/md";
+import { MdHome, MdStore, MdShare, MdSearch } from "react-icons/md";
 import { BiSolidPurchaseTag } from "react-icons/bi";
 import { FaHeart } from "react-icons/fa";
 import LogoutConfirm from "../Common/LogoutConfirm";
@@ -45,8 +45,8 @@ const UserLayout = () => {
     { path: "/favourites", label: "Favourites", icon: <FaHeart /> },
     { path: "/orders", label: "Orders", icon: <BiSolidPurchaseTag /> },
     { path: "/coins", label: "Coins", icon: <p className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-yellow-500">Z</p> },
-    { path: "/share-supplies", label: "Share Supplies", icon: <img src="/src/assets/shareSup.png" alt="Share" className="w-6" /> },
-    { path: "/get-supplies", label: "Get Supplies", icon: <img src="/src/assets/searchLove.png" alt="Get" className="w-6" /> },
+    { path: "/share-supplies", label: "Share Supplies", icon: <MdShare className="w-6 h-6" /> },
+    { path: "/get-supplies", label: "Get Supplies", icon: <MdSearch className="w-6 h-6" /> },
   ];
 
   const renderNavItem = ({ path, label, icon }) => (
@@ -405,7 +405,7 @@ const UserLayout = () => {
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                <img src="/src/assets/shareSup.png" alt="Share" className="w-5 h-5 mr-3" />
+                <MdShare className="text-lg mr-3" />
                 <span>Share Supplies</span>
               </button>
               <button
@@ -419,7 +419,7 @@ const UserLayout = () => {
                     : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                <img src="/src/assets/searchLove.png" alt="Get" className="w-5 h-5 mr-3" />
+                <MdSearch className="text-lg mr-3" />
                 <span>Get Supplies</span>
               </button>
             </div>

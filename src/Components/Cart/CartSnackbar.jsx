@@ -3,7 +3,7 @@ import { FaShoppingCart } from 'react-icons/fa';
 import { IoMdClose } from 'react-icons/io';
 import { useCart } from "../../Hooks/useCart";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 
 const CartSnackbar = () => {
     const navigate = useNavigate();
@@ -14,12 +14,34 @@ const CartSnackbar = () => {
     const totalItemsCount = totalItems?.data?.totalItems || 0;
     const totalPriceCount = totalPrice?.data?.totalPrice || 0;
 
-    const shouldShowSnackbar = totalItemsCount > 0 && location.pathname !== '/cart' && location.pathname !== '/order-success' && isVisible;
+    // Improved path checking logic
+    const excludedPaths = ['/cart', '/order-success', '/checkout'];
+    const isExcludedPath = excludedPaths.some(path => location.pathname.startsWith(path));
+    
+    const shouldShowSnackbar = totalItemsCount > 0 && !isExcludedPath && isVisible;
 
     const handleClose = () => {
         setIsVisible(false);
-        setTimeout(() => setIsVisible(true), 30000);
+        // Clear any existing timeouts before setting a new one
+        const timeoutId = setTimeout(() => {
+            // Only show if we're not on an excluded path
+            if (!isExcludedPath) {
+                setIsVisible(true);
+            }
+        }, 30000);
+
+        // Cleanup timeout on unmount or when component updates
+        return () => clearTimeout(timeoutId);
     };
+
+    // Reset visibility when navigating away from excluded paths
+    useEffect(() => {
+        if (!isExcludedPath && totalItemsCount > 0) {
+            setIsVisible(true);
+        } else if (isExcludedPath) {
+            setIsVisible(false);
+        }
+    }, [location.pathname, isExcludedPath, totalItemsCount]);
 
     return (
         <AnimatePresence>

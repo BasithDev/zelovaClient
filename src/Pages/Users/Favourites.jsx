@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "../../Components/Common/Header";
 import debounce from 'lodash/debounce';
 import { getFavourites, removeFavorite } from "../../Services/apiServices";
+import { useNavigate } from 'react-router-dom';
 
 const Favourites = () => {
+    const navigate = useNavigate();
     const [favourites, setFavourites] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [menuSearchQuery, setMenuSearchQuery] = useState("");
@@ -142,6 +144,7 @@ const Favourites = () => {
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3 }}
                             exit={{ opacity: 0 }}
+                            onClick={() => navigate(`/menu/${item.item.restaurantId._id}`)}
                         >
                             <div className="relative">
                                 {item.item.image && (
@@ -161,7 +164,10 @@ const Favourites = () => {
                             </div>
                             <div className="absolute top-3 right-3">
                                 <button 
-                                    onClick={() => handleRemoveFavorite(item.item._id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveFavorite(item.item._id);
+                                    }}
                                     className="focus:outline-none"
                                 >
                                     <AiFillHeart 

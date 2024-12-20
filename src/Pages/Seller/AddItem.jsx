@@ -12,8 +12,11 @@ import 'cropperjs/dist/cropper.css';
 import { toast } from "react-toastify";
 import { uploadImageToCloud } from '../../Helpers/uploadImageToCloud';
 import { BeatLoader } from 'react-spinners';
+import { useNavigate } from 'react-router-dom';
+import { FaHome, FaUtensils } from 'react-icons/fa';
 
 const AddItem = () => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         itemName: '',
         price: '',
@@ -30,6 +33,7 @@ const AddItem = () => {
 
     const [dropdownData, setDropdownData] = useState({ subCategories: [], offers: [] });
     const [isCropperVisible, setIsCropperVisible] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
     const cropperRef = useRef(null);
 
     const fetchDropdownData = useCallback(async () => {
@@ -150,8 +154,8 @@ const AddItem = () => {
                 setIsAddingItem(true)
                 const uploadedImage = await uploadImageToCloud(croppedImage)
                 const updatedFormData = { ...formData, image: uploadedImage.secure_url };
-                const response = await addProduct(updatedFormData)
-                toast.success(response.data.message)
+                await addProduct(updatedFormData)
+                setShowSuccess(true);
                 setFormData({
                     itemName: '',
                     price: '',
@@ -176,6 +180,55 @@ const AddItem = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-4">
+            <AnimatePresence>
+                {showSuccess && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 px-4"
+                    >
+                        <motion.div
+                            initial={{ y: -50 }}
+                            animate={{ y: 0 }}
+                            className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl"
+                        >
+                            <div className="text-center">
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="mx-auto flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4"
+                                >
+                                    <FaUtensils className="h-8 w-8 text-green-600" />
+                                </motion.div>
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">Item Added Successfully!</h3>
+                                <p className="text-gray-600 mb-6">Your new item has been added to the menu.</p>
+                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => navigate('/vendor')}
+                                        className="flex items-center justify-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                                    >
+                                        <FaHome className="text-lg" />
+                                        Home
+                                    </motion.button>
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => navigate('/vendor/menu')}
+                                        className="flex items-center justify-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                                    >
+                                        <FaUtensils className="text-lg" />
+                                        View Menu
+                                    </motion.button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             <div className="space-y-6 sm:space-y-8">
                 <h1 className='text-center font-bold text-3xl sm:text-5xl'>Add Items</h1>
                 <AddFoodCategories />

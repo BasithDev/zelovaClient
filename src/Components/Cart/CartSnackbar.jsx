@@ -3,7 +3,7 @@ import { FaShoppingCart } from 'react-icons/fa';
 import { IoMdClose } from 'react-icons/io';
 import { useCart } from "../../Hooks/useCart";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState,useEffect } from 'react';
+import { useState } from 'react';
 
 const CartSnackbar = () => {
     const navigate = useNavigate();
@@ -22,26 +22,7 @@ const CartSnackbar = () => {
 
     const handleClose = () => {
         setIsVisible(false);
-        // Clear any existing timeouts before setting a new one
-        const timeoutId = setTimeout(() => {
-            // Only show if we're not on an excluded path
-            if (!isExcludedPath) {
-                setIsVisible(true);
-            }
-        }, 30000);
-
-        // Cleanup timeout on unmount or when component updates
-        return () => clearTimeout(timeoutId);
     };
-
-    // Reset visibility when navigating away from excluded paths
-    useEffect(() => {
-        if (!isExcludedPath && totalItemsCount > 0) {
-            setIsVisible(true);
-        } else if (isExcludedPath) {
-            setIsVisible(false);
-        }
-    }, [location.pathname, isExcludedPath, totalItemsCount]);
 
     return (
         <AnimatePresence>

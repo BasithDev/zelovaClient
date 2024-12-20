@@ -22,7 +22,7 @@ const Register = () => {
     const navigate = useNavigate();
 
     const handleGoogleLogin = () => {
-        window.location.href  = 'http://localhost:3000/api/auth/google';
+        window.location.href  = 'https://zelova.zapto.org/api/auth/google';
     };
 
     const formik = useFormik({
@@ -35,18 +35,37 @@ const Register = () => {
             phoneNumber: ''
         },
         validationSchema: Yup.object({
-            fullname: Yup.string().required('Fullname is required'),
-            email: Yup.string().email('Invalid email address').required('Email is required'),
+            fullname: Yup.string()
+                .required('Fullname is required')
+                .min(3, 'Fullname must be at least 3 characters')
+                .max(50, 'Fullname must not exceed 50 characters')
+                .matches(/^[a-zA-Z\s]+$/, 'Fullname can only contain letters and spaces')
+                .test('no-consecutive-spaces', 'Fullname cannot have consecutive spaces', value => 
+                    !value || !/\s\s/.test(value)
+                ),
+            email: Yup.string()
+                .email('Invalid email address')
+                .required('Email is required'),
             password: Yup.string()
                 .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, 'Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character')
                 .required('Password is required'),
             confirmPassword: Yup.string()
                 .oneOf([Yup.ref('password'), null], 'Passwords must match')
                 .required('Confirm Password is required'),
-            age: Yup.number().required('Age is required').min(18, 'You must be at least 18 years old').max(115, 'Enter a valid age'),
+            age: Yup.number()
+                .required('Age is required')
+                .min(15, 'You must be at least 15 years old')
+                .max(115, 'Enter a valid age'),
             phoneNumber: Yup.string()
-                .matches(/^[0-9]{10}$/, 'Phone number must be exactly 10 digits')
                 .required('Phone number is required')
+                .matches(/^[1-9][0-9]{9}$/, 'Phone number must be exactly 10 digits and cannot start with 0')
+                .test('no-repeated', 'Invalid phone number pattern', value => {
+                    if (!value) return true;
+                    for (let i = 0; i < 10; i++) {
+                        if (value.split(i.toString()).length > 7) return false;
+                    }
+                    return true;
+                })
         }),
         onSubmit: async (values) => {
             setLoading(true);

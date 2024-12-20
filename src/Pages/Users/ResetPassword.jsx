@@ -36,7 +36,7 @@ const ResetPassword = () => {
 
     setIsChangingPassword(true);
     try {
-      const response = await axios.patch('http://localhost:3000/api/user/reset-password', {
+      const response = await axios.patch('https://zelova.zapto.org/api/user/reset-password', {
         userId: userData._id,
         oldPassword,
         newPassword,

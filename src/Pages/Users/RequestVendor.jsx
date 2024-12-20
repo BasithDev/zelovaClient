@@ -27,9 +27,24 @@ const RequestVendorPage = () => {
       description: '',
     },
     validationSchema: Yup.object({
-      restaurantName: Yup.string().required('Restaurant name is required'),
-      address: Yup.string().required('Address is required'),
-      description: Yup.string().required('Description is required'),
+      restaurantName: Yup.string()
+        .required('Restaurant name is required')
+        .min(3, 'Restaurant name must be at least 3 characters')
+        .max(50, 'Restaurant name must not exceed 50 characters')
+        .matches(/^[a-zA-Z\s]+$/, 'Restaurant name can only contain letters and spaces')
+        .test('no-consecutive-spaces', 'Restaurant name cannot have consecutive spaces', value => 
+          !value || !/\s\s/.test(value)
+        ),
+      address: Yup.string()
+        .required('Address is required')
+        .min(10, 'Address must be at least 10 characters')
+        .max(200, 'Address must not exceed 200 characters')
+        .matches(/^[a-zA-Z0-9\s,.-]+$/, 'Address can only contain letters, numbers, spaces, commas, dots, and hyphens'),
+      description: Yup.string()
+        .required('Description is required')
+        .min(20, 'Description must be at least 20 characters')
+        .max(500, 'Description must not exceed 500 characters')
+        .matches(/^[a-zA-Z0-9\s,.!?-]+$/, 'Description can only contain letters, numbers, spaces, and basic punctuation'),
     }),
     onSubmit: async (values) => {
       try {

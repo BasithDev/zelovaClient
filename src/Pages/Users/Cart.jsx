@@ -336,29 +336,29 @@ const Cart = () => {
 
             <div className="bg-white rounded-lg shadow-md p-3 my-6">
                 <div className="mb-1"> 
-                    <h2 className="text-xl font-bold mb-4">Have a Coupon?</h2>
-                    <div className="flex gap-2 mb-4">
+                    <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Have a Coupon?</h2>
+                    <div className="flex flex-col sm:flex-row gap-2 mb-4">
                         <input
                             type="text"
                             value={couponCode}
                             onChange={(e) => updateCartState({ couponCode: e.target.value.toUpperCase() })}
                             placeholder="Enter coupon code"
                             disabled={appliedCoupon !== null}
-                            className={`flex-1 border border-gray-200 rounded-lg px-4 py-2 focus:outline-none ${
+                            className={`w-full sm:flex-1 border border-gray-200 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base focus:outline-none ${
                                 appliedCoupon ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'focus:border-orange-500'
                             }`}
                         />
                         {appliedCoupon ? (
                             <button
                                 onClick={removeCoupon}
-                                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                                className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-4 sm:px-6 py-2 rounded-lg font-medium text-sm sm:text-base transition-colors"
                             >
                                 Remove
                             </button>
                         ) : (
                             <button
                                 onClick={handleApplyCoupon}
-                                className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-2 rounded-lg font-medium text-sm sm:text-base transition-colors"
                             >
                                 Apply
                             </button>
@@ -389,23 +389,23 @@ const Cart = () => {
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ type:"tween",duration: 0. }}
-                            className="overflow-hidden border-t border-gray-100 pt-4 px-4"
+                            transition={{ type: "tween", duration: 0.3 }}
+                            className="overflow-hidden border-t border-gray-100 pt-4 px-2 sm:px-4"
                         >
                             <div className="space-y-3 hide-scrollbar max-h-56 overflow-y-auto">
                                 {coupons && coupons.map(coupon => (
                                     <div 
                                         key={coupon._id} 
-                                        className="border border-gray-100 rounded-lg p-3 hover:border-orange-500 transition-colors bg-gray-50"
+                                        className="border border-gray-100 rounded-lg p-2 sm:p-3 hover:border-orange-500 transition-colors bg-gray-50"
                                     >
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1 mr-4">
-                                                <h3 className="font-medium text-gray-800">{coupon.name}</h3>
-                                                <p className="text-sm text-gray-600 mt-1">{coupon.description}</p>
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
+                                            <div className="flex-1">
+                                                <h3 className="font-medium text-gray-800 text-sm sm:text-base">{coupon.name}</h3>
+                                                <p className="text-xs sm:text-sm text-gray-600 mt-1">{coupon.description}</p>
                                                 <p className="text-xs text-gray-500 mt-1">Min. Order: ₹{coupon.minPrice}</p>
                                             </div>
-                                            <div className="flex flex-col items-end gap-2">
-                                                <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-sm font-medium whitespace-nowrap">
+                                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
+                                                <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs sm:text-sm font-medium whitespace-nowrap">
                                                     {coupon.code}
                                                 </span>
                                                 <button
@@ -415,7 +415,7 @@ const Cart = () => {
                                                         appliedCoupon?.code === coupon.code
                                                             ? 'bg-gray-400 cursor-not-allowed'
                                                             : 'bg-orange-500 hover:bg-orange-600'
-                                                    } text-white py-1 px-2 rounded-md transition-colors text-sm font-medium`}
+                                                    } text-white py-1 px-2 rounded-md transition-colors text-xs sm:text-sm font-medium`}
                                                 >
                                                     {appliedCoupon?.code === coupon.code ? 'Applied' : 'Use'}
                                                 </button>
@@ -424,7 +424,7 @@ const Cart = () => {
                                     </div>
                                 ))}
                                 {coupons.length === 0 && (
-                                    <p className="text-sm text-gray-600">No coupons available for you right now.</p>
+                                    <p className="text-sm text-gray-600 text-center">No coupons available for you right now.</p>
                                 )}
                             </div>
                         </motion.div>
@@ -531,7 +531,7 @@ const Cart = () => {
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
                                     placeholder="Enter phone number"
-                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm sm:text-base focus:outline-none focus:border-orange-500"
+                                    className="flex-1 border border-gray-200 rounded-lg px-3 sm:px-4 py-2 text-sm sm:text-base focus:outline-none focus:border-orange-500"
                                 />
                                 {userPhoneNumber && (
                                     <motion.button

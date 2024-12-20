@@ -35,9 +35,11 @@ const Profile = () => {
             onClick={()=>navigate('/edit-user')}
             icon={<FaEdit />} color="text-orange-500" label="Edit Profile" />
 
-          <ProfileOption 
-            onClick={()=>navigate('/reset-password')}
-            icon={<FaKey />} color="text-blue-500" label="Reset Password" />
+          {!userData.isGoogleID && (
+            <ProfileOption 
+              onClick={()=>navigate('/reset-password')}
+              icon={<FaKey />} color="text-blue-500" label="Reset Password" />
+          )}
 
           <ProfileOption 
             onClick={()=>navigate('/change-id')}

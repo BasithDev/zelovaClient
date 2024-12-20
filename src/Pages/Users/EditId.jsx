@@ -3,11 +3,11 @@ import { FaPaperPlane } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
-import { fetchUserData } from '../../Redux/slices/user/userDataSlice'
+import { fetchUserData } from '../../Redux/slices/user/userDataSlice';
+import { sendEmailOtp, updateUserEmail } from '../../Services/apiServices';
 
 const EditId = () => {
   const userData = useSelector(state => state.userData.data);
@@ -18,6 +18,7 @@ const EditId = () => {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const navigate = useNavigate()
+
   const handleSendOtp = async () => {
     if (!newEmail) {
       toast.error("Please enter a new email.");
@@ -29,7 +30,7 @@ const EditId = () => {
     }
     setIsSendingOtp(true);
     try {
-      const response = await axios.post('http://localhost:3000/api/user/send-otp', { email: newEmail });
+      const response = await sendEmailOtp({ email: newEmail });
       if (response.data.status === 'Success') {
         setIsOtpSent(true);
         toast.success("OTP sent successfully.");
@@ -43,6 +44,7 @@ const EditId = () => {
       setIsSendingOtp(false);
     }
   };
+
   const handleChangeId = async () => {
     if (!otp) {
       toast.error("Please enter the OTP.");
@@ -50,7 +52,7 @@ const EditId = () => {
     }
     setIsChangingEmail(true);
     try {
-      const response = await axios.patch('http://localhost:3000/api/user/update-email', {
+      const response = await updateUserEmail({
         userId: userData._id,
         email: newEmail,
         otp,
@@ -71,6 +73,7 @@ const EditId = () => {
       setIsChangingEmail(false);
     }
   };
+
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100">
       <ToastContainer position="top-right" />

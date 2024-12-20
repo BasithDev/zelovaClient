@@ -76,9 +76,23 @@ const EditUser = () => {
       .trim()
       .required('Full name is required')
       .min(3, 'Full name must be at least 3 characters long')
-      .matches(/^[a-zA-Z\s]+$/, 'Full name must only contain letters and spaces'),
-    phoneNumber: Yup.string().trim().required('Phone number is required'),
-    age: Yup.number().required('Age is required').min(10, 'Enter a valid age (above 10 years)').max(115, 'Enter a valid age (below 115 years)'),
+      .matches(/^[a-zA-Z\s]+$/, 'Full name can only contain letters and spaces')
+      .test('no-consecutive-spaces', 'Full name cannot have consecutive spaces', value => 
+        !value || !/\s\s/.test(value)
+      ),
+    phoneNumber: Yup.string()
+      .trim()
+      .required('Phone number is required')
+      .matches(/^[0-9]+$/, 'Phone number can only contain numbers')
+      .min(10, 'Phone number must be at least 10 digits')
+      .max(15, 'Phone number must not exceed 15 digits')
+      .test('no-zeros', 'Invalid phone number', value => 
+        !value || !/^0{6,}/.test(value)
+      ),
+    age: Yup.number()
+      .required('Age is required')
+      .min(10, 'Enter a valid age (above 10 years)')
+      .max(115, 'Enter a valid age (below 115 years)'),
   });
 
   const initialValues = {

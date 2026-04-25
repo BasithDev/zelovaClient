@@ -1,4 +1,4 @@
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { addOffer,getOffers,deleteOffer } from '../../../Services/apiServices';
 import { useState,useEffect,useCallback } from "react";
 import PrimaryBtn from '../../../Components/Buttons/PrimaryBtn';

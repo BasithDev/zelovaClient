@@ -9,6 +9,8 @@ const AddItem = lazy(() => import('../Pages/Seller/AddItem'));
 const ManageRestaurant = lazy(() => import('../Pages/Seller/ManageRestaurant'));
 const MenuManagement = lazy(() => import('../Pages/Seller/Menu'));
 const Orders = lazy(() => import('../Pages/Seller/Orders'));
+const OfferManagement = lazy(() => import('../Pages/Seller/OfferManagement'));
+const CategoriesManagement = lazy(() => import('../Pages/Seller/CategoriesManagement'));
 
 const VendorRoutes = [
     <Route key="vendor" element={<UserRoleProtectedRoute allowedRoles={['vendor']} />}>
@@ -18,8 +20,11 @@ const VendorRoutes = [
             <Route path='manage-restaurant' element={<ManageRestaurant />} />
             <Route path='menu' element={<MenuManagement />} />
             <Route path='orders' element={<Orders />} />
+            <Route path='offers' element={<OfferManagement />} />
+            <Route path='categories' element={<CategoriesManagement />} />
         </Route>
     </Route>
 ];
 
 export default VendorRoutes;
+

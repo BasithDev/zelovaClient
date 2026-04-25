@@ -1,9 +1,8 @@
 import { BrowserRouter as Router, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { ToastContainer } from 'react-toastify';
+import { Toaster } from 'react-hot-toast';
 import { Suspense } from 'react';
-import 'react-toastify/dist/ReactToastify.css';
 
 // Auth Components
 import AuthChecker from './Components/Common/AuthChecker';
@@ -55,7 +54,7 @@ function App() {
             </Router>
           </QueryClientProvider>
         </GoogleOAuthProvider>
-        <ToastContainer position='top-right'/>
+        <Toaster position='top-right' />
       </div>
     </ErrorBoundary>
   );

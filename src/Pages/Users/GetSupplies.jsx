@@ -1,92 +1,155 @@
-import { useEffect, useState } from 'react';
-import Header from '../../Components/Common/Header';
+import { useState } from 'react';
+import { MdArrowBack, MdLocationOn, MdPhone, MdAccessTime, MdSearchOff } from 'react-icons/md';
+import { FiPhone } from 'react-icons/fi';
+import { useQuery } from '@tanstack/react-query';
 import { getSupplies } from '../../Services/apiServices';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaPhoneAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const GetSupplies = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
   const userLocation = useSelector(state => state?.userLocation?.coordinates);
   const [lat, lon] = userLocation ? Object.values(userLocation) : [0, 0];
-  const [supplies, setSupplies] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAvailableSupplies = async () => {
-      try {
-        const response = await getSupplies(lat, lon);
-        setSupplies(response.data.supplies);
-      } catch (error) {
-        console.error('Error fetching supplies:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAvailableSupplies();
-  }, [lat, lon, userLocation]);
+  // Fetch supplies with React Query (cached)
+  const { data: suppliesResponse, isLoading: loading } = useQuery({
+    queryKey: ['supplies', lat, lon],
+    queryFn: () => getSupplies(lat, lon),
+    enabled: !!(lat && lon),
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000,
+  });
+
+  const supplies = suppliesResponse?.data?.supplies || [];
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Header
-        searchQuery={searchQuery}
-        onSearchChange={(e) => setSearchQuery(e.target.value)}
-        placeholderText="Search foods, restaurants, etc..."
-      />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-400">
-            Get Supplies
-          </h1>
-          <p className="mt-4 text-xl text-gray-600">Receive Support and Essential Supplies with Ease</p>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-6 sm:mb-8 text-center">Available Supplies Near You</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 mb-6"
+        >
+          <button 
+            onClick={() => navigate('/')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <MdArrowBack className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Get Supplies</h1>
+            <p className="text-sm text-gray-500">Find essential supplies near you</p>
+          </div>
+        </motion.div>
+
+        {/* Location Info */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-orange-50 rounded-xl p-4 mb-6 flex items-center gap-3"
+        >
+          <div className="p-2 bg-orange-100 rounded-lg">
+            <MdLocationOn className="w-5 h-5 text-orange-500" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-900">Showing supplies near you</p>
+            <p className="text-xs text-gray-500">Based on your current location</p>
+          </div>
+        </motion.div>
+
+        {/* Content */}
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 sm:h-32 sm:w-32"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 animate-pulse">
+                <div className="flex justify-between mb-3">
+                  <div className="h-5 w-32 bg-gray-200 rounded" />
+                  <div className="h-5 w-16 bg-gray-200 rounded-full" />
+                </div>
+                <div className="h-4 w-full bg-gray-200 rounded mb-2" />
+                <div className="h-4 w-3/4 bg-gray-200 rounded" />
+              </div>
+            ))}
           </div>
         ) : supplies.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-            <img 
-              src="/no-data.svg" 
-              alt="No supplies" 
-              className="w-40 h-40 mb-4 opacity-60"
-            />
-            <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-2">No Supplies Available</h2>
-            <p className="text-gray-500">There are currently no supplies shared in your area.</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MdSearchOff className="w-10 h-10 text-gray-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">No Supplies Found</h2>
+            <p className="text-sm text-gray-500 mb-6">There are no supplies shared in your area yet</p>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/share-supplies')}
+              className="px-6 py-3 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition-colors"
+            >
+              Share Your Supplies
+            </motion.button>
+          </motion.div>
         ) : (
           <AnimatePresence>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 px-4 sm:px-6">
-              {supplies.map((supply) => (
+            <div className="space-y-4">
+              {supplies.map((supply, index) => (
                 <motion.div
                   key={supply._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="bg-white rounded-xl shadow-md p-4 sm:p-6 transform transition-all duration-300 hover:shadow-xl relative"
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <span className="absolute top-3 right-3 bg-orange-100 text-orange-600 font-semibold text-sm rounded-full px-3 py-1">
-                    {supply.distance.toFixed(1)} km
-                  </span>
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2 pr-20">{supply.heading}</h2>
-                  <p className="text-gray-600 mb-4 line-clamp-3">{supply.description}</p>
-                  <div className="flex items-center text-gray-600 text-sm sm:text-base">
-                    <span className="flex items-center gap-1">
-                      Contact : 
-                      {supply.contactNumber}
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <h3 className="font-semibold text-gray-900">{supply.heading}</h3>
+                    <span className="flex-shrink-0 px-2.5 py-1 bg-orange-100 text-orange-600 text-xs font-medium rounded-full">
+                      {supply.distance.toFixed(1)} km
                     </span>
                   </div>
-                  <div className="mt-3 text-xs sm:text-sm text-gray-500">
-                    <p>Posted: {new Date(supply.createdAt).toLocaleString()}</p>
+
+                  {/* Description */}
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{supply.description}</p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <MdPhone className="w-3.5 h-3.5" />
+                        {supply.contactNumber}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MdAccessTime className="w-3.5 h-3.5" />
+                        {formatDate(supply.createdAt)}
+                      </span>
+                    </div>
+                    <motion.a
+                      href={`tel:${supply.contactNumber}`}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="p-2.5 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                    >
+                      <FiPhone className="w-4 h-4" />
+                    </motion.a>
                   </div>
-                  <button 
-                    className="absolute bottom-3 right-3 bg-gray-100 text-gray-500 rounded-full p-2.5 sm:p-3 hover:bg-orange-100 hover:text-orange-500 transition-all duration-300 shadow-sm"
-                    onClick={() => window.location.href = `tel:${supply.contactNumber}`}
-                    aria-label="Call supplier"
-                  >
-                    <FaPhoneAlt size={16} />
-                  </button>
                 </motion.div>
               ))}
             </div>

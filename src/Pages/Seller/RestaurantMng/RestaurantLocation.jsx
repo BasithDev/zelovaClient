@@ -48,16 +48,28 @@ const RestaurantLocation = ({
     const fetchAddressFromCoordinates = async (lat, lng) => {
         try {
             const response = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${import.meta.env.VITE_GMAP_KEY}`
+                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+                {
+                    headers: {
+                        "Accept-Language": "en",
+                    },
+                }
             );
             const data = await response.json();
-            if (data.results?.[0]) {
-                return data.results[0].formatted_address;
+
+            if (data.display_name) {
+                return data.display_name;
             }
-            throw new Error("No address found for the given coordinates.");
+
+            if (data.error) {
+                toast.info("No address found for this location");
+                return null;
+            }
+
+            throw new Error("Geocoding failed: No results");
         } catch (error) {
-            console.error("Failed to fetch address:", error);
-            toast.error("Failed to fetch address. Try again later.");
+            console.error("Geocoding error:", error.message);
+            toast.error("Failed to fetch address. Check console for details.");
             return null;
         }
     };

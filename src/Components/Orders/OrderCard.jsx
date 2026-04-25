@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaStar } from 'react-icons/fa';
 import { MdContentCopy } from 'react-icons/md';
 import { rateRestaurant } from '../../Services/apiServices';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const OrderStatus = ({ status }) => {
   const getStatusColor = () => {
@@ -163,8 +163,15 @@ const OrderCard = ({ order, setShowDeliveryPopup, setSelectedOrderId, isPrevious
             </div>
           ))}
         </div>
-
-        <div className="mt-6 space-y-3 border-t border-dashed border-gray-200 pt-4">
+        <div className='mt-2 mx-2'>
+          {localOrder.billDetails.totalSavings > 0 && (
+            <div className="flex justify-between text-xs sm:text-sm text-green-600">
+              <span>Total Savings</span>
+              <span>-₹{localOrder.billDetails.totalSavings.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 space-y-3 border-t border-dashed border-gray-200 pt-4">
           <div className="flex justify-between text-xs sm:text-sm text-gray-600">
             <span>Item Total</span>
             <span>₹{localOrder.billDetails.itemTotal.toFixed(2)}</span>
@@ -183,12 +190,7 @@ const OrderCard = ({ order, setShowDeliveryPopup, setSelectedOrderId, isPrevious
             <span>Tax</span>
             <span>₹{localOrder.billDetails.tax.toFixed(2)}</span>
           </div>
-          {localOrder.billDetails.totalSavings > 0 && (
-            <div className="flex justify-between text-xs sm:text-sm text-green-600">
-              <span>Total Savings</span>
-              <span>-₹{localOrder.billDetails.totalSavings.toFixed(2)}</span>
-            </div>
-          )}
+          
           <div className="flex justify-between font-bold text-gray-800 pt-3 border-t border-gray-200 text-sm sm:text-base">
             <span>Total</span>
             <span>₹{localOrder.billDetails.finalAmount.toFixed(2)}</span>

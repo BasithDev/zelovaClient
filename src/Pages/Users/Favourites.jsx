@@ -1,205 +1,239 @@
-import { useState, useMemo, useEffect } from "react";
-import { FaSearch } from 'react-icons/fa';
-import { AiFillHeart } from 'react-icons/ai'
+import { useState, useMemo } from "react";
+import { MdArrowBack, MdSearch, MdFavorite, MdSentimentDissatisfied, MdFilterList, MdStorefront } from "react-icons/md";
+import { AiFillHeart } from 'react-icons/ai';
 import { motion, AnimatePresence } from "framer-motion";
-import Header from "../../Components/Common/Header";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import debounce from 'lodash/debounce';
 import { getFavourites, removeFavorite } from "../../Services/apiServices";
 import { useNavigate } from 'react-router-dom';
 
 const Favourites = () => {
-    const navigate = useNavigate();
-    const [favourites, setFavourites] = useState([]);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [menuSearchQuery, setMenuSearchQuery] = useState("");
-    const [debouncedMenuSearch, setDebouncedMenuSearch] = useState("");
-    const [sortOrder, setSortOrder] = useState('none');
-    const [showEmptyState, setShowEmptyState] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [menuSearchQuery, setMenuSearchQuery] = useState("");
+  const [debouncedMenuSearch, setDebouncedMenuSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState('none');
+  const [showSort, setShowSort] = useState(false);
 
-    useEffect(() => {
-        const fetchFavourites = async () => {
-            try {
-                const response = await getFavourites();
-                setFavourites(response.data.favorites);
-                setShowEmptyState(response.data.favorites.length === 0);
-            } catch (error) {
-                console.error("Error fetching favourites:", error);
-                setShowEmptyState(true);
-            }
-        };
-        fetchFavourites();
-    }, []);
+  // Fetch favourites with React Query (cached)
+  const { data: favResponse, isLoading: loading } = useQuery({
+    queryKey: ['favorites'],
+    queryFn: () => getFavourites(),
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000,
+  });
 
-    const debouncedSetMenuSearch = useMemo(
-        () => debounce((value) => {
-            setDebouncedMenuSearch(value);
-        }, 300),
-        []
+  const favourites = favResponse?.data?.favorites || [];
+
+  const debouncedSetMenuSearch = useMemo(
+    () => debounce((value) => setDebouncedMenuSearch(value), 300),
+    []
+  );
+
+  const handleMenuSearchChange = (e) => {
+    const value = e.target.value;
+    setMenuSearchQuery(value);
+    debouncedSetMenuSearch(value);
+  };
+
+  const filteredFavorites = useMemo(() => {
+    const query = debouncedMenuSearch.toLowerCase().trim();
+    if (!query) return favourites;
+    return favourites.filter(fav =>
+      fav.item?.name?.toLowerCase().includes(query) ||
+      fav.item?.description?.toLowerCase().includes(query) ||
+      fav.item?.restaurantId?.name?.toLowerCase().includes(query)
     );
+  }, [debouncedMenuSearch, favourites]);
 
-    const handleMenuSearchChange = (e) => {
-        const value = e.target.value;
-        setMenuSearchQuery(value);
-        debouncedSetMenuSearch(value);
-    };
+  const sortedFavorites = useMemo(() => {
+    if (sortOrder === 'none') return filteredFavorites;
+    return [...filteredFavorites].sort((a, b) => {
+      if (sortOrder === 'lowToHigh') return a.item.price - b.item.price;
+      if (sortOrder === 'highToLow') return b.item.price - a.item.price;
+      return 0;
+    });
+  }, [filteredFavorites, sortOrder]);
 
-    const filteredFavorites = useMemo(() => {
-        const query = debouncedMenuSearch.toLowerCase().trim();
-        if (!query) return favourites
+  const handleRemoveFavorite = async (e, foodItemId) => {
+    e.stopPropagation();
+    try {
+      await removeFavorite({ foodItemId });
+      queryClient.invalidateQueries(['favorites']);
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+    }
+  };
 
-        return favourites.filter(fav =>
-            fav.item.name.toLowerCase().includes(query) ||
-            fav.item.description.toLowerCase().includes(query) ||
-            fav.item.restaurantId.name.toLowerCase().includes(query)
-        );
-    }, [debouncedMenuSearch, favourites]);
+  const sortOptions = [
+    { value: 'none', label: 'Default' },
+    { value: 'lowToHigh', label: 'Price: Low to High' },
+    { value: 'highToLow', label: 'Price: High to Low' },
+  ];
 
-    const sortedFavorites = useMemo(() => {
-        if (sortOrder === 'none') return filteredFavorites;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between mb-6"
+        >
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <MdArrowBack className="w-5 h-5 text-gray-600" />
+            </button>
+            <h1 className="text-xl font-semibold text-gray-900">Favourites</h1>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowSort(!showSort)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <MdFilterList className="w-5 h-5 text-gray-600" />
+            </button>
+            <AnimatePresence>
+              {showSort && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-10 min-w-[160px]"
+                >
+                  {sortOptions.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => { setSortOrder(opt.value); setShowSort(false); }}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                        sortOrder === opt.value ? 'bg-orange-50 text-orange-600 font-medium' : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
 
-        return [...filteredFavorites].sort((a, b) => {
-            if (sortOrder === 'lowToHigh') return a.item.price - b.item.price;
-            if (sortOrder === 'highToLow') return b.item.price - a.item.price;
-            return 0;
-        });
-    }, [filteredFavorites, sortOrder]);
+        {/* Search */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="relative mb-6"
+        >
+          <MdSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={menuSearchQuery}
+            onChange={handleMenuSearchChange}
+            placeholder="Search favourites..."
+            className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white transition-all"
+          />
+        </motion.div>
 
-    const handleRemoveFavorite = async (foodItemId) => {
-        try {
-            await removeFavorite({ foodItemId:foodItemId });
-            setFavourites(prevFavorites => prevFavorites.filter(fav => fav.item._id !== foodItemId));
-        } catch (error) {
-            console.error("Error removing favorite:", error);
-        }
-    };
-
-    const handleExitComplete = () => {
-        if (sortedFavorites.length === 0) {
-            setShowEmptyState(true);
-        }
-    };
-
-    return (
-        <div className="min-h-screen bg-gray-50">
-            <Header
-                searchQuery={searchQuery}
-                onSearchChange={(e) => setSearchQuery(e.target.value)}
-                placeholderText="Search foods, restaurants, etc..."
-            />
-
-            <div className="px-8 py-3">
-                <div className="flex justify-between items-center gap-4">
-                    <div className="relative flex-1 max-w-2xl">
-                        <input
-                            type="text"
-                            value={menuSearchQuery}
-                            onChange={handleMenuSearchChange}
-                            placeholder="Search in favourites..."
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 placeholder-gray-400 shadow-sm"
+        {/* Content */}
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+                <div className="h-40 bg-gray-200" />
+                <div className="p-4 space-y-2">
+                  <div className="h-5 w-32 bg-gray-200 rounded" />
+                  <div className="h-4 w-48 bg-gray-200 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : sortedFavorites.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              {debouncedMenuSearch ? (
+                <MdSentimentDissatisfied className="w-10 h-10 text-gray-400" />
+              ) : (
+                <MdFavorite className="w-10 h-10 text-gray-400" />
+              )}
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              {debouncedMenuSearch ? 'No results found' : 'No favourites yet'}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {debouncedMenuSearch 
+                ? `Try a different search term`
+                : 'Start adding items to your favourites'}
+            </p>
+          </motion.div>
+        ) : (
+          <div className="space-y-4">
+            <AnimatePresence>
+              {sortedFavorites.map((item, index) => (
+                <motion.div
+                  key={item._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ delay: index * 0.03 }}
+                  onClick={() => navigate(`/menu/${item.item?.restaurantId?._id}`)}
+                  className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                >
+                  <div className="flex">
+                    {/* Image */}
+                    <div className="relative w-32 h-32 flex-shrink-0">
+                      {item.item?.image ? (
+                        <img
+                          src={item.item.image}
+                          alt={item.item.name}
+                          className="w-full h-full object-cover"
                         />
-                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                            <FaSearch size={16} />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <MdStorefront className="w-8 h-8 text-gray-400" />
                         </div>
+                      )}
+                      {item.item?.offers && (
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded">
+                          {item.item.offers.offerName}
+                        </div>
+                      )}
                     </div>
-
-                    <select
-                        value={sortOrder}
-                        onChange={(e) => setSortOrder(e.target.value)}
-                        className="w-32 px-4 py-3 bg-white border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-300 shadow-sm cursor-pointer"
-                    >
-                        <option value="none">Sort by</option>
-                        <option value="lowToHigh">Price: Low to High</option>
-                        <option value="highToLow">Price: High to Low</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="pb-20 px-8">
-                {showEmptyState && !debouncedMenuSearch && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex flex-col items-center justify-center py-12"
-                    >
-                        <p className="text-xl text-gray-600">No favourites added yet</p>
-                        <p className="text-gray-500 mt-2">Start adding items to your favourites!</p>
-                    </motion.div>
-                )}
-
-                {!sortedFavorites.length && debouncedMenuSearch && (
-                    <div className="flex flex-col items-center justify-center py-12">
-                        <p className="text-xl text-gray-600">{`No favourites found matching - "${debouncedMenuSearch}"`}</p>
-                        <p className="text-gray-500 mt-2">Try a different search term</p>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <AnimatePresence onExitComplete={handleExitComplete}>
-                    {sortedFavorites.map((item) => (
-                        <motion.div
-                            key={item._id}
-                            className="bg-white rounded-lg shadow-md overflow-hidden hover:bg-orange-50 cursor-pointer transition-all duration-200 hover:shadow-lg relative"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => navigate(`/menu/${item.item.restaurantId._id}`)}
+                    {/* Content */}
+                    <div className="flex-1 p-4 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{item.item?.name}</h3>
+                        <p className="text-sm text-gray-500 line-clamp-1">{item.item?.description}</p>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div>
+                          <span className="text-lg font-bold text-green-600">₹{item.item?.price}</span>
+                          <p className="text-xs text-gray-500">{item.item?.restaurantId?.name}</p>
+                        </div>
+                        <button
+                          onClick={(e) => handleRemoveFavorite(e, item.item._id)}
+                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                         >
-                            <div className="relative">
-                                {item.item.image && (
-                                    <motion.img
-                                        src={item.item.image}
-                                        alt={item.item.name}
-                                        className="w-full h-64 object-cover"
-                                        whileHover={{ scale: 1.05 }}
-                                        transition={{ duration: 0.3 }}
-                                    />
-                                )}
-                                {item.item.offers && (
-                                    <div className="absolute bottom-3 left-3 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-md">
-                                        {item.item.offers.offerName}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="absolute top-3 right-3">
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemoveFavorite(item.item._id);
-                                    }}
-                                    className="focus:outline-none"
-                                >
-                                    <AiFillHeart 
-                                        className="text-red-500 text-2xl hover:scale-110 transition-all duration-300" 
-                                    />
-                                </button>
-                            </div>
-                            <div className="p-4">
-                                <h4 className="text-xl font-bold text-gray-900 truncate mb-2">
-                                    {item.item.name}
-                                </h4>
-                                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                                    {item.item.description}
-                                </p>
-                                <p className="text-lg font-semibold text-green-500 mb-2">
-                                    ₹{item.item.price}
-                                </p>
-                                {item.item.restaurantId && (
-                                    <div className="text-gray-700">
-                                        <p className="font-bold text-gray-800 text-xl"><span className="font-semibold text-sm text-indigo-700">From: </span> {item.item.restaurantId.name}</p>
-                                        <p className="text-gray-500">{item.item.restaurantId.address}</p>
-                                    </div>
-                                )}
-                                
-                            </div>
-                        </motion.div>
-                    ))}
-                    </AnimatePresence>
-                </div>
-            </div>
-        </div>
-    );
+                          <AiFillHeart className="w-6 h-6 text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default Favourites;

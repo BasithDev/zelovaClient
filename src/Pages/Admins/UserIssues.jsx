@@ -1,86 +1,404 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MdReportProblem } from 'react-icons/md';
-import { IoMdRefresh } from "react-icons/io";
-import { AiOutlineLoading3Quarters } from "react-icons/ai";
+import { LuSearch, LuClipboardList, LuEye, LuX } from 'react-icons/lu';
+import { FiRefreshCw, FiCheckCircle, FiXCircle, FiDollarSign, FiAlertCircle } from 'react-icons/fi';
+import { HiOutlineExclamation } from 'react-icons/hi';
 import AdminSearchBar from '../../Components/SearchBar/AdminSearchBar';
-import { toast } from 'react-toastify';
+import { StatCard, CustomDropdown, TableSkeleton } from '../../Components/Admin';
+import { toast } from 'react-hot-toast';
 import { getUserIssues, resolveUserIssues, ignoreUserIssues, refundUserIssues, getOrderDetails } from '../../Services/apiServices';
-import { FaTimes } from 'react-icons/fa';
-import { MdContentCopy } from 'react-icons/md';
-import PropTypes from 'prop-types';
+
+// Issue Card
+const IssueCard = ({ issue, onResolve, onIgnore, onRefund, onViewOrder, loadingStates }) => {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow"
+    >
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+            <HiOutlineExclamation className="w-5 h-5 text-rose-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-slate-900 truncate">{issue.userName}</h3>
+              {issue.refundAmount > 0 && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                  ₹{issue.refundAmount} Refund
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500 truncate">{issue.email}</p>
+          </div>
+          <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-lg shrink-0">
+            {issue.problemType}
+          </span>
+        </div>
+
+        {/* Description */}
+        <p className="text-sm text-slate-600 mb-3 line-clamp-2">{issue.description}</p>
+
+        {/* Order ID */}
+        {issue.orderId && (
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+            <LuClipboardList className="w-3.5 h-3.5" />
+            <span className="font-mono">Order: {issue.orderId.substring(0, 12)}...</span>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => onResolve(issue._id)}
+            disabled={loadingStates[`resolve_${issue._id}`]}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {loadingStates[`resolve_${issue._id}`] ? (
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <FiCheckCircle className="w-3.5 h-3.5" />
+                Resolve
+              </>
+            )}
+          </button>
+          
+          {issue.refundAmount > 0 && (
+            <button
+              onClick={() => onRefund(issue)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <FiDollarSign className="w-3.5 h-3.5" />
+              Refund
+            </button>
+          )}
+          
+          <button
+            onClick={() => onIgnore(issue._id)}
+            disabled={loadingStates[`ignore_${issue._id}`]}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 disabled:opacity-50"
+          >
+            {loadingStates[`ignore_${issue._id}`] ? (
+              <span className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin" />
+            ) : (
+              <>
+                <FiXCircle className="w-3.5 h-3.5" />
+                Ignore
+              </>
+            )}
+          </button>
+          
+          {issue.orderId && (
+            <button
+              onClick={() => onViewOrder(issue)}
+              className="px-3 py-2 text-xs font-medium bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
+            >
+              <LuEye className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Order Details Modal
+const OrderDetailsModal = ({ issue, orderDetails, loadingOrder, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.95, opacity: 0 }}
+      className="bg-white rounded-xl max-w-lg w-full max-h-[85vh] overflow-hidden"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between p-4 border-b border-slate-100">
+        <h3 className="text-lg font-semibold text-slate-900">Order Details</h3>
+        <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+          <LuX className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="p-4 overflow-y-auto max-h-[70vh]">
+        {loadingOrder ? (
+          <div className="flex items-center justify-center py-12">
+            <span className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          </div>
+        ) : orderDetails ? (
+          <div className="space-y-4">
+            <div className="p-3 bg-slate-50 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">Order ID</p>
+              <p className="text-sm font-mono text-slate-900">{issue.orderId}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-1">Restaurant</p>
+                <p className="text-sm font-medium text-slate-900">{orderDetails.restaurantName}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-1">Status</p>
+                <p className="text-sm font-medium text-slate-900 capitalize">{orderDetails.status}</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">Date</p>
+              <p className="text-sm text-slate-900">{orderDetails.orderDate}</p>
+            </div>
+
+            {orderDetails.items && orderDetails.items.length > 0 && (
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-500 mb-2">Items</p>
+                <div className="space-y-2">
+                  {orderDetails.items.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-700">{item.name} x{item.quantity}</span>
+                      <span className="font-medium text-slate-900">₹{item.price * item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between">
+                  <span className="font-medium text-slate-900">Total</span>
+                  <span className="font-bold text-slate-900">₹{orderDetails.totalAmount?.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="p-3 bg-slate-50 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">Delivery Address</p>
+              <p className="text-sm text-slate-900">{orderDetails.deliveryAddress}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-slate-500">
+            Failed to load order details
+          </div>
+        )}
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+// Refund Modal
+const RefundModal = ({ issue, refundAmount, setRefundAmount, onSubmit, onClose, isLoading }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.95, opacity: 0 }}
+      className="bg-white rounded-xl max-w-md w-full p-6"
+      onClick={e => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-semibold text-slate-900 mb-4">Process Refund</h3>
+      
+      <div className="space-y-4 mb-6">
+        <div className="p-3 bg-slate-50 rounded-lg">
+          <p className="text-xs text-slate-500 mb-1">User</p>
+          <p className="text-sm font-medium text-slate-900">{issue?.userName}</p>
+          <p className="text-xs text-slate-500">{issue?.email}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Refund Amount (Z-Coins)</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+            <input
+              type="number"
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
+              className="w-full pl-8 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              min="0"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={onClose}
+          className="flex-1 px-4 py-2.5 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onSubmit}
+          disabled={isLoading}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isLoading ? (
+            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            'Add to Z-Coins'
+          )}
+        </button>
+      </div>
+    </motion.div>
+  </motion.div>
+);
 
 const UserIssues = () => {
-  const [issues, setIssues] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [loadingStates, setLoadingStates] = useState({});
+  const [search, setSearch] = useState('');
+  const [problemFilter, setProblemFilter] = useState('all');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Modals
   const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [refundAmount, setRefundAmount] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
 
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    try {
+  // React Query - fetch issues with caching
+  const { data: issues = [], isLoading, refetch } = useQuery({
+    queryKey: ['adminIssues'],
+    queryFn: async () => {
       const { data } = await getUserIssues();
       if (data.success) {
-        const formattedIssues = data.issues.map(issue => ({
+        return data.issues.map(issue => ({
           ...issue,
           userName: issue.username,
           email: issue.userEmail,
           problemType: issue.problemOn,
           refundAmount: issue.refund || 0
         }));
-        setIssues(formattedIssues);
-        toast.success('Issues refreshed successfully');
       }
-    } catch (error) {
-      console.error('Error fetching issues:', error);
-      toast.error('Failed to fetch issues');
-    } finally {
-      setIsLoading(false);
+      return [];
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Stats computed from issues
+  const stats = useMemo(() => ({
+    total: issues.length,
+    withRefund: issues.filter(i => i.refundAmount > 0).length,
+    totalRefundAmount: issues.reduce((sum, i) => sum + (i.refundAmount || 0), 0)
+  }), [issues]);
+
+  // Filter issues with useMemo
+  const filteredIssues = useMemo(() => {
+    let filtered = [...issues];
+    
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(issue => 
+        issue.userName?.toLowerCase().includes(searchLower) ||
+        issue.email?.toLowerCase().includes(searchLower) ||
+        issue.orderId?.toLowerCase().includes(searchLower) ||
+        issue.description?.toLowerCase().includes(searchLower)
+      );
     }
-  };
 
+    if (problemFilter !== 'all') {
+      filtered = filtered.filter(issue => issue.problemType === problemFilter);
+    }
+
+    return filtered;
+  }, [issues, search, problemFilter]);
+
+  // Reset page when filters change
   useEffect(() => {
-    handleRefresh();
-  }, []);
+    setCurrentPage(1);
+  }, [search, problemFilter]);
 
-  const handleResolve = async (id) => {
-    setLoadingStates(prev => ({ ...prev, [`resolve_${id}`]: true }));
-    try {
+  // Get unique problem types
+  const problemTypes = [...new Set(issues.map(i => i.problemType).filter(Boolean))];
+  const problemOptions = [
+    { value: 'all', label: 'All Problems' },
+    ...problemTypes.map(type => ({ value: type, label: type }))
+  ];
+
+  const perPageOptions = [
+    { value: 5, label: '5 per page' },
+    { value: 10, label: '10 per page' },
+    { value: 20, label: '20 per page' }
+  ];
+
+  // Mutation for resolve
+  const resolveMutation = useMutation({
+    mutationFn: async (id) => {
       const response = await resolveUserIssues(id);
-      if (response.data.success) {
-        setIssues(prevIssues => prevIssues.filter(issue => issue._id !== id));
-        toast.success('Issue resolved successfully');
-      }
-    } catch (error) {
-      console.error('Error resolving issue:', error);
+      if (response.data.success) return id;
+      throw new Error('Failed');
+    },
+    onMutate: (id) => {
+      setLoadingStates(prev => ({ ...prev, [`resolve_${id}`]: true }));
+    },
+    onSuccess: (id) => {
+      queryClient.setQueryData(['adminIssues'], (old) => old?.filter(issue => issue._id !== id) || []);
+    },
+    onError: () => {
       toast.error('Failed to resolve issue');
-    } finally {
+    },
+    onSettled: (id) => {
       setLoadingStates(prev => ({ ...prev, [`resolve_${id}`]: false }));
     }
-  };
+  });
 
-  const handleIgnore = async (id) => {
-    setLoadingStates(prev => ({ ...prev, [`ignore_${id}`]: true }));
-    try {
+  // Mutation for ignore
+  const ignoreMutation = useMutation({
+    mutationFn: async (id) => {
       const response = await ignoreUserIssues(id);
-      if (response.data.success) {
-        setIssues(prevIssues => prevIssues.filter(issue => issue._id !== id));
-        toast.success('Issue ignored successfully');
-      }
-    } catch (error) {
-      console.error('Error ignoring issue:', error);
+      if (response.data.success) return id;
+      throw new Error('Failed');
+    },
+    onMutate: (id) => {
+      setLoadingStates(prev => ({ ...prev, [`ignore_${id}`]: true }));
+    },
+    onSuccess: (id) => {
+      queryClient.setQueryData(['adminIssues'], (old) => old?.filter(issue => issue._id !== id) || []);
+    },
+    onError: () => {
       toast.error('Failed to ignore issue');
-    } finally {
+    },
+    onSettled: (id) => {
       setLoadingStates(prev => ({ ...prev, [`ignore_${id}`]: false }));
     }
-  };
+  });
+
+  // Mutation for refund
+  const refundMutation = useMutation({
+    mutationFn: async ({ userId, refundAmt, issueId }) => {
+      const response = await refundUserIssues({ userId, refundAmt, issueId });
+      if (response.data.success) return issueId;
+      throw new Error('Failed');
+    },
+    onSuccess: (issueId) => {
+      setShowRefundModal(false);
+      setSelectedIssue(null);
+      setRefundAmount('');
+      queryClient.setQueryData(['adminIssues'], (old) => old?.filter(issue => issue._id !== issueId) || []);
+    },
+    onError: () => {
+      toast.error('Failed to process refund');
+    }
+  });
+
+  const handleResolve = (id) => resolveMutation.mutate(id);
+  const handleIgnore = (id) => ignoreMutation.mutate(id);
 
   const openRefundModal = (issue) => {
     setSelectedIssue(issue);
@@ -88,389 +406,193 @@ const UserIssues = () => {
     setShowRefundModal(true);
   };
 
-  const handleRefund = async () => {
-    setLoadingStates(prev => ({ ...prev, refund: true }));
-    try {
-      const response = await refundUserIssues({
-        userId: selectedIssue.userId,
-        refundAmt: Number(refundAmount),
-        issueId: selectedIssue._id
-      });
-      
-      if (response.data.success) {
-        toast.success('Refund processed successfully');
-        setShowRefundModal(false);
-        setSelectedIssue(null);
-        setRefundAmount('');
-        setIssues(prevIssues => prevIssues.filter(issue => issue._id !== selectedIssue._id));
-      }
-    } catch (error) {
-      console.error('Error processing refund:', error);
-      toast.error('Failed to process refund');
-    } finally {
-      setLoadingStates(prev => ({ ...prev, refund: false }));
-    }
+  const handleRefund = () => {
+    refundMutation.mutate({
+      userId: selectedIssue.userId,
+      refundAmt: Number(refundAmount),
+      issueId: selectedIssue._id
+    });
   };
 
-  const handleCopyOrderId = (orderId) => {
-    navigator.clipboard.writeText(orderId)
-      .then(() => toast.success('Order ID copied!'))
-      .catch(() => toast.error('Failed to copy Order ID'));
-  };
-
-  const fetchOrderDetails = async (orderId) => {
+  const handleViewOrder = async (issue) => {
+    setSelectedIssue(issue);
+    setShowOrderModal(true);
+    setLoadingOrder(true);
     try {
-      setLoadingOrder(true);
-      const response = await getOrderDetails(orderId);
+      const response = await getOrderDetails(issue.orderId);
       if (response.data.success) {
         setOrderDetails(response.data.orderDetails);
       }
     } catch (error) {
-      console.error('Error fetching order details:', error);
       toast.error('Failed to fetch order details');
     } finally {
       setLoadingOrder(false);
     }
   };
 
-  const handleViewOrderDetails = (issue) => {
-    setSelectedIssue(issue);
-    setShowOrderModal(true);
-    fetchOrderDetails(issue.orderId);
-  };
+  const paginatedIssues = filteredIssues.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
 
-  const OrderDetailsModal = ({ issue, onClose }) => (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-gray-900">Order Details</h3>
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <AdminSearchBar />
+
+      <div className="px-6 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">User Issues</h1>
+            <p className="text-slate-500 text-sm mt-1">Manage and resolve user reported issues</p>
+          </div>
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
-            <FaTimes className="w-5 h-5 text-gray-500" />
+            <FiRefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
         </div>
 
-        {loadingOrder ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          <StatCard 
+            icon={FiAlertCircle} 
+            label="Total Issues" 
+            value={stats.total} 
+            color="text-rose-600" 
+            bgColor="bg-rose-100" 
+          />
+          <StatCard 
+            icon={FiDollarSign} 
+            label="Refund Requests" 
+            value={stats.withRefund} 
+            color="text-amber-600" 
+            bgColor="bg-amber-100" 
+          />
+          <StatCard 
+            icon={FiDollarSign} 
+            label="Total Refund Amt" 
+            value={stats.totalRefundAmount} 
+            color="text-blue-600" 
+            bgColor="bg-blue-100" 
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl border border-slate-200 mb-6">
+          <div className="p-4 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search by user, email, order ID, or description..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+            <CustomDropdown
+              value={problemFilter}
+              onChange={setProblemFilter}
+              options={problemOptions}
+              label="Problem Type"
+            />
+            <CustomDropdown
+              value={itemsPerPage}
+              onChange={(val) => { setItemsPerPage(val); setCurrentPage(1); }}
+              options={perPageOptions}
+              label="Per page"
+            />
           </div>
-        ) : orderDetails ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600 font-medium">Order ID:</span>
-              <span className="text-gray-800">{issue.orderId}</span>
-              <button
-                onClick={() => handleCopyOrderId(issue.orderId)}
-                className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded-full hover:bg-gray-100"
-                title="Copy Order ID"
-              >
-                <MdContentCopy className="w-4 h-4" />
-              </button>
-            </div>
+        </div>
 
-            <div>
-              <span className="text-gray-600 font-medium">Restaurant:</span>
-              <span className="ml-2 text-gray-800">{orderDetails.restaurantName}</span>
-            </div>
-
-            <div>
-              <span className="text-gray-600 font-medium">Restaurant Address:</span>
-              <span className="ml-2 text-gray-800">{orderDetails.restaurantAddress}</span>
-            </div>
-
-            <div>
-              <span className="text-gray-600 font-medium">Order Date:</span>
-              <span className="ml-2 text-gray-800">{orderDetails.orderDate}</span>
-            </div>
-
-            <div>
-              <span className="text-gray-600 font-medium">Order Status:</span>
-              <span className="ml-2 text-gray-800">{orderDetails.status}</span>
-            </div>
-
-            <div>
-              <span className="text-gray-600 font-medium">Items:</span>
-              <div className="mt-2 space-y-2">
-                {orderDetails.items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                    <span className="text-gray-800">{item.name} x{item.quantity}</span>
-                    <span className="text-gray-600">₹{item.price * item.quantity}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <span className="text-gray-600 font-medium">Total Amount:</span>
-              <span className="ml-2 text-gray-800">₹{orderDetails.totalAmount.toFixed(2)}</span>
-            </div>
-
-            <div>
-              <span className="text-gray-600 font-medium">Delivery Address:</span>
-              <p className="mt-1 text-gray-800">{orderDetails.deliveryAddress}</p>
-            </div>
+        {/* Issues Grid */}
+        {isLoading ? (
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <TableSkeleton />
+          </div>
+        ) : filteredIssues.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <FiAlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-slate-900 mb-1">No Issues Found</h3>
+            <p className="text-slate-500 text-sm">
+              {search || problemFilter !== 'all' 
+                ? 'Try adjusting your search or filters'
+                : 'There are no pending issues from users'}
+            </p>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            Failed to load order details
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
-  );
-
-  OrderDetailsModal.propTypes = {
-    issue: PropTypes.shape({
-      orderId: PropTypes.string.isRequired,
-    }).isRequired,
-    onClose: PropTypes.func.isRequired,
-  };
-
-  return (
-    <div>
-      <AdminSearchBar/>
-      <div className="flex justify-between items-center px-6 mb-6">
-        <h2 className="text-4xl font-bold text-gray-800">User Issues</h2>
-        <div className="flex items-center gap-4">
-          <select
-            value={itemsPerPage}
-            onChange={(e) => {
-              setItemsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="p-2 border border-gray-300 rounded-lg outline-none"
-          >
-            <option value={5}>5 per page</option>
-            <option value={10}>10 per page</option>
-            <option value={20}>20 per page</option>
-          </select>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRefresh}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-          >
-            <IoMdRefresh className={isLoading ? "animate-spin" : ""} size={20} />
-            Refresh
-          </motion.button>
-        </div>
-      </div>
-      
-      {issues.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center p-8 ms-6"
-        >
-          <MdReportProblem className="text-7xl text-gray-300 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Issues Reported</h3>
-          <p className="text-gray-500 text-center">
-            There are currently no pending issues from users. Check back later
-          </p>
-        </motion.div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ms-6">
-            <AnimatePresence>
-              {issues
-                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                .map((issue) => (
-                  <motion.div
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <AnimatePresence mode="popLayout">
+                {paginatedIssues.map((issue) => (
+                  <IssueCard
                     key={issue._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white rounded-lg shadow-lg p-6 space-y-4"
-                  >
-                    <div>
-                      <h3 className="text-xl font-semibold text-gray-800">{issue.userName}</h3>
-                      <p className="text-gray-600 text-sm">{issue.email}</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-gray-600 font-medium">Problem On:</span>
-                        <span className="ml-2 text-gray-800">{issue.problemType}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600 font-medium">Description:</span>
-                        <p className="text-gray-800 mt-1">{issue.description}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600 font-medium">Order ID:</span>
-                        <span className="ml-2 text-gray-800">{issue.orderId}</span>
-                      </div>
-                      {issue.refundAmount > 0 && (
-                        <div>
-                          <span className="text-gray-600 font-medium">Requested Refund:</span>
-                          <span className="ml-2 text-gray-800">₹{issue.refundAmount}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {issue.orderId && (
-                          <>
-                            <button
-                              onClick={() => handleViewOrderDetails(issue)}
-                              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                              View Order Details
-                            </button>
-                          </>
-                        )}
-
-                    <div className="flex space-x-3 mt-4">
-                      <button
-                        onClick={() => handleResolve(issue._id)}
-                        disabled={loadingStates[`resolve_${issue._id}`]}
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {loadingStates[`resolve_${issue._id}`] ? (
-                          <AiOutlineLoading3Quarters className="animate-spin" />
-                        ) : (
-                          'Resolve'
-                        )}
-                      </button>
-                      {issue.refundAmount > 0 && (
-                        <button
-                          onClick={() => openRefundModal(issue)}
-                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                          Refund
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleIgnore(issue._id)}
-                        disabled={loadingStates[`ignore_${issue._id}`]}
-                        className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {loadingStates[`ignore_${issue._id}`] ? (
-                          <AiOutlineLoading3Quarters className="animate-spin" />
-                        ) : (
-                          'Ignore'
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-            </AnimatePresence>
-          </div>
-          {Math.ceil(issues.length / itemsPerPage) > 1 && (
-            <div className="flex justify-center gap-2 mt-6 mb-6">
-              <button
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                disabled={currentPage === 1}
-                className={`px-3 py-1 rounded ${
-                  currentPage === 1
-                    ? 'bg-gray-200 cursor-not-allowed'
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                }`}
-              >
-                Previous
-              </button>
-              {[...Array(Math.ceil(issues.length / itemsPerPage))].map((_, index) => (
-                <button
-                  key={index + 1}
-                  onClick={() => setCurrentPage(index + 1)}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === index + 1
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={currentPage === Math.ceil(issues.length / itemsPerPage)}
-                className={`px-3 py-1 rounded ${
-                  currentPage === Math.ceil(issues.length / itemsPerPage)
-                    ? 'bg-gray-200 cursor-not-allowed'
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                }`}
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Refund Modal */}
-
-      <AnimatePresence>
-        {showRefundModal && (
-          <motion.div
-            key="refund-modal"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
-            >
-              <h3 className="text-xl font-bold mb-4">Refund Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-gray-600">User Name</p>
-                  <p className="font-medium">{selectedIssue?.userName}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Email</p>
-                  <p className="font-medium">{selectedIssue?.email}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-600 mb-1">Refund Amount (₹)</label>
-                  <input
-                    type="number"
-                    value={refundAmount}
-                    onChange={(e) => setRefundAmount(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
+                    issue={issue}
+                    onResolve={handleResolve}
+                    onIgnore={handleIgnore}
+                    onRefund={openRefundModal}
+                    onViewOrder={handleViewOrder}
+                    loadingStates={loadingStates}
                   />
-                </div>
-                <div className="flex space-x-3 mt-6">
-                  <button
-                    onClick={() => setShowRefundModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleRefund}
-                    disabled={loadingStates.refund}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loadingStates.refund ? (
-                      <AiOutlineLoading3Quarters className="animate-spin" />
-                    ) : (
-                      `Add to User's Zcoin`
-                    )}
-                  </button>
-                </div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1.5 text-sm rounded-lg ${
+                        currentPage === pageNum 
+                          ? "bg-blue-600 text-white" 
+                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
               </div>
-            </motion.div>
-          </motion.div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {showRefundModal && selectedIssue && (
+          <RefundModal
+            issue={selectedIssue}
+            refundAmount={refundAmount}
+            setRefundAmount={setRefundAmount}
+            onSubmit={handleRefund}
+            onClose={() => { setShowRefundModal(false); setSelectedIssue(null); }}
+            isLoading={loadingStates.refund}
+          />
         )}
       </AnimatePresence>
 
@@ -478,11 +600,9 @@ const UserIssues = () => {
         {showOrderModal && selectedIssue && (
           <OrderDetailsModal
             issue={selectedIssue}
-            onClose={() => {
-              setShowOrderModal(false);
-              setSelectedIssue(null);
-              setOrderDetails(null);
-            }}
+            orderDetails={orderDetails}
+            loadingOrder={loadingOrder}
+            onClose={() => { setShowOrderModal(false); setSelectedIssue(null); setOrderDetails(null); }}
           />
         )}
       </AnimatePresence>

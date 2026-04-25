@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {verifyOTP,resendOTP} from '../../Services/apiServices'
 import PrimaryBtn from '../../Components/Buttons/PrimaryBtn';
 import { motion } from 'framer-motion';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 
 const Otp = () => {

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getCart, getTotalItemsFromCart, getTotalPriceFromCart, updateCart } from '../Services/apiServices';
-import {toast} from 'react-toastify';
+import {toast} from 'react-hot-toast';
 import { useState } from 'react';
 
 export const useCart = () => {

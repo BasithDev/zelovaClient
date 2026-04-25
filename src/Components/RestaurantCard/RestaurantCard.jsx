@@ -1,72 +1,68 @@
-import { FaStar, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaStar, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
+import { MdStorefront, MdDirectionsBike } from 'react-icons/md';
 import PropTypes from 'prop-types';
 
 const RestaurantCard = ({ restaurant, timeInMinutes, distanceInKm }) => {
+    const hasRating = restaurant.avgRating && restaurant.avgRating > 0;
+    
     return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div className="h-32 sm:h-40 bg-gradient-to-br from-orange-500 via-orange-400 to-yellow-400 relative">
-                <div className="absolute inset-0">
-                    <svg className="w-full h-full opacity-10" viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <path d="M0 0 L100 0 L100 100 L0 100 Z" fill="url(#pattern)" />
-                        <defs>
-                            <pattern id="pattern" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-                                <circle cx="5" cy="5" r="2" fill="currentColor" />
-                            </pattern>
-                        </defs>
-                    </svg>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/30"></div>
-            </div>
-            <div className="p-4 sm:p-6 relative">
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden shadow-lg -mt-12 sm:-mt-16 border-4 border-white bg-white">
+        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+            <div className="flex">
+                {/* Left: Restaurant Image */}
+                <div className="w-40 sm:w-48 h-36 sm:h-40 flex-shrink-0 bg-gray-100">
+                    {restaurant.image ? (
                         <img 
                             src={restaurant.image} 
                             alt={restaurant.name}
                             className="w-full h-full object-cover"
                         />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+                            <MdStorefront className="w-12 h-12 text-orange-400" />
+                        </div>
+                    )}
+                </div>
+
+                {/* Middle: Main Info */}
+                <div className="flex-1 p-4 flex flex-col justify-center">
+                    {/* Name */}
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{restaurant.name}</h2>
+
+                    {/* Location */}
+                    <div className="flex items-center gap-1.5 mt-2 text-gray-500 text-sm">
+                        <FaMapMarkerAlt className="w-3.5 h-3.5 text-gray-400" />
+                        <span>
+                            {restaurant.address && restaurant.address !== 'Add Address' 
+                                ? restaurant.address 
+                                : 'Location not available'}
+                        </span>
                     </div>
-                    <div className="flex-1 w-full sm:w-auto">
-                        <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-2 sm:gap-0">
-                            <div className="text-center sm:text-left">
-                                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{restaurant.name}</h1>
-                                <p className="text-gray-600 flex items-center justify-center sm:justify-start gap-2 mt-1">
-                                    <FaMapMarkerAlt className="hidden sm:block text-orange-500" />
-                                    {restaurant.address}
-                                </p>
-                                <p className="text-gray-600 mt-1">Phone: {restaurant.phone}</p>
-                            </div>
-                            <div className={`${restaurant.avgRating >= 3.5 ? "bg-green-600" : "bg-orange-500"} text-white rounded-lg px-3 py-1`}>
-                                <span className="text-base sm:text-lg flex items-center font-semibold">
-                                    {restaurant.avgRating === 0 || !restaurant.avgRating ? "Not rated yet" : (restaurant.avgRating || 0).toFixed(1)}
-                                    <FaStar className="inline ml-1 text-yellow-400" />
-                                </span>
-                            </div>
+
+                    {/* Delivery Info - More Prominent */}
+                    <div className="flex items-center gap-4 mt-3">
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                            <MdDirectionsBike className="w-5 h-5" />
+                            <span className="font-bold text-base">{distanceInKm} km</span>
                         </div>
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-3">
-                            <span className="bg-orange-50 text-orange-600 text-xs sm:text-sm px-3 py-1 rounded-full">Fast Food</span>
-                            <span className="bg-orange-50 text-orange-600 text-xs sm:text-sm px-3 py-1 rounded-full">Restaurant</span>
-                            <span className="bg-orange-50 text-orange-600 text-xs sm:text-sm px-3 py-1 rounded-full">Beverages</span>
-                        </div>
-                        {/* Delivery Progress */}
-                        <div className="mt-4 border-t pt-4">
-                            <div className="flex flex-col">
-                                <div className="flex items-center">
-                                    <div className={`w-3 h-3 ${timeInMinutes < 15 ? 'bg-green-600' : timeInMinutes <= 30 ? 'bg-orange-500' : 'bg-red-500'} rounded-full`}></div>
-                                    <p className="text-sm sm:text-base text-gray-600 ml-2">Outlet</p>
-                                </div>
-                                <div className={`h-12 flex items-center border-l-2 ml-[5px] ${timeInMinutes < 15 ? 'border-green-600' : timeInMinutes <= 30 ? 'border-orange-500' : 'border-red-500'}`}>
-                                    <p className="text-sm sm:text-base text-gray-600 ml-2">
-                                        {timeInMinutes} Mins • {distanceInKm} Km
-                                    </p>
-                                </div>
-                                <div className="flex items-center">
-                                    <div className={`w-3 h-3 ${timeInMinutes < 15 ? 'bg-green-600' : timeInMinutes <= 30 ? 'bg-orange-500' : 'bg-red-500'} rounded-full`}></div>
-                                    <p className="text-sm sm:text-base text-gray-600 ml-2">Your Location</p>
-                                </div>
-                            </div>
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                            <FaClock className="w-4 h-4" />
+                            <span className="font-bold text-base">{timeInMinutes} min</span>
                         </div>
                     </div>
+                </div>
+
+                {/* Right: Rating */}
+                <div className="p-4 flex items-start">
+                    {hasRating ? (
+                        <div className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg">
+                            <FaStar className="w-3 h-3" />
+                            <span className="font-bold text-sm">{restaurant.avgRating.toFixed(1)}</span>
+                        </div>
+                    ) : (
+                        <div className="bg-orange-100 text-orange-700 px-4 py-1.5 rounded-lg">
+                            <span className="text-sm font-semibold">New</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -76,9 +72,9 @@ const RestaurantCard = ({ restaurant, timeInMinutes, distanceInKm }) => {
 RestaurantCard.propTypes = {
     restaurant: PropTypes.shape({
         name: PropTypes.string.isRequired,
-        image: PropTypes.string.isRequired,
-        address: PropTypes.string.isRequired,
-        phone: PropTypes.string.isRequired,
+        image: PropTypes.string,
+        address: PropTypes.string,
+        phone: PropTypes.string,
         avgRating: PropTypes.number,
     }).isRequired,
     timeInMinutes: PropTypes.number.isRequired,

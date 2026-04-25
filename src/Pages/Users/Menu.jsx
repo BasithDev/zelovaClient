@@ -1,47 +1,57 @@
-import { useState, useEffect, useMemo } from "react";
-import { FiMenu } from 'react-icons/fi';
-import { FaPlus, FaMinus } from "react-icons/fa";
-import { useLocation, useParams } from 'react-router-dom';
-import { getMenuForUser } from '../../Services/apiServices';
-import { useSelector, useDispatch } from "react-redux";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { FaPlus, FaMinus, FaStar, FaHeart, FaRegHeart } from "react-icons/fa";
+import { MdArrowBack, MdSearch, MdClose, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
+import { HiOutlineAdjustmentsHorizontal } from "react-icons/hi2";
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { getMenuForUser, addFavorite, removeFavorite, getFavourites } from '../../Services/apiServices';
+import { useSelector } from "react-redux";
 import { calculateDistanceAndTime } from '../../utils/distanceUtils';
-import RestaurantCard from "../../Components/RestaurantCard/RestaurantCard";
 import { AnimatePresence, motion } from "framer-motion";
-import { toast,ToastContainer } from 'react-toastify';
-import Header from "../../Components/Common/Header";
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 import debounce from 'lodash/debounce';
-import LoadingSpinner from "../../Components/LoadingSpinner/LoadingSpinner";
-import MenuSearch from "../../Components/MenuSearch/MenuSearch";
-import CategoryMenu from "../../Components/CategoryMenu/CategoryMenu";
 import { useCart } from "../../Hooks/useCart";
-import { addFavorite, removeFavorite, getFavourites } from "../../Services/apiServices";
+import RestaurantCard from "../../Components/RestaurantCard/RestaurantCard";
 
 const Menu = () => {
-
+    const navigate = useNavigate();
     const { id } = useParams();
-    const [searchQuery, setSearchQuery] = useState("");
+    const location = useLocation();
+    
+    // State
     const [menuSearchQuery, setMenuSearchQuery] = useState("");
     const [debouncedMenuSearch, setDebouncedMenuSearch] = useState("");
-    const [restaurant, setRestaurant] = useState(null);
-    const [menuItems, setMenuItems] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isFabOpen, setIsFabOpen] = useState(false);
-    const [sortOrder, setSortOrder] = useState('none');
     const [favorites, setFavorites] = useState(new Set());
+    const [expandedCategories, setExpandedCategories] = useState({});
+    const [showFilters, setShowFilters] = useState(false);
+    const [sortBy, setSortBy] = useState('default');
+    const [vegOnly, setVegOnly] = useState(false);
+    
+    // Customization modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomizations, setSelectedCustomizations] = useState({});
     const [selectedItem, setSelectedItem] = useState(null);
-    const location = useLocation()
 
-    const {
-        cart,
-        updateCartMutation,
-    } = useCart();
+    const { cart, updateCartMutation } = useCart();
+    const userLocation = useSelector((state) => state.userLocation);
+    const { lat, lng: lon } = userLocation?.coordinates || {};
 
-    const dispatch = useDispatch();
-    const userCoordinates = useSelector((state) => state.userLocation.coordinates);
+    // Debounced search
+    const debouncedSetMenuSearch = useMemo(
+        () => debounce((value) => setDebouncedMenuSearch(value), 300),
+        []
+    );
 
+    useEffect(() => {
+        return () => debouncedSetMenuSearch.cancel();
+    }, [debouncedSetMenuSearch]);
+
+    const handleMenuSearchChange = (value) => {
+        setMenuSearchQuery(value);
+        debouncedSetMenuSearch(value);
+    };
+
+    // Cart operations
     const handleCartUpdation = (itemId, action, customizations = null) => {
         const payload = {
             itemId,
@@ -51,18 +61,23 @@ const Menu = () => {
         updateCartMutation.mutate(payload);
     };
 
-    useEffect(()=>{
-        if(location.state){
-            const {foodCategory} = location.state
-            handleCategoryClick(foodCategory)
-        }
-    },[location.state])
+    const getItemQuantity = useCallback((itemId) => {
+        return cart?.data?.cart?.items?.find((cartItem) => cartItem?.item._id === itemId)?.quantity || 0;
+    }, [cart?.data?.cart?.items]);
 
+    const getItemCustomizations = useCallback((itemId) => {
+        return cart?.data?.cart?.items?.find((cartItem) => cartItem?.item._id === itemId)?.selectedCustomizations;
+    }, [cart?.data?.cart?.items]);
+
+    // Customization Modal handlers
     const handleModalOpen = (item) => {
         setSelectedItem(item);
         const defaultSelections = {};
-        item.customizations.forEach(customization => {
-            defaultSelections[customization.fieldName] = customization.options[0];
+        item.customizations?.forEach(customization => {
+            // Only set default selection for variants (required), not add-ons (optional)
+            if (customization.type === 'version') {
+                defaultSelections[customization.fieldName] = customization.options[0];
+            }
         });
         setSelectedCustomizations(defaultSelections);
         setIsModalOpen(true);
@@ -75,186 +90,198 @@ const Menu = () => {
     };
 
     const handleCustomizationChange = (fieldName, option) => {
-        setSelectedCustomizations(prev => ({
-            ...prev,
-            [fieldName]: option
-        }));
+        setSelectedCustomizations(prev => ({ ...prev, [fieldName]: option }));
     };
 
-    const handleOkClick = (e) => {
-        e.preventDefault();
+    const handleAddWithCustomizations = (e) => {
+        e?.preventDefault();
         if (!selectedItem) return;
-        const formattedCustomizations = Object.entries(selectedCustomizations).map(([fieldName, option]) => ({
-            fieldName,
-            options: option
-        }));
+        
+        // Filter out any undefined/null options (unselected add-ons)
+        const formattedCustomizations = Object.entries(selectedCustomizations)
+            .filter(([, option]) => option != null)
+            .map(([fieldName, option]) => ({
+                fieldName,
+                options: option
+            }));
         handleCartUpdation(selectedItem._id, 'add', formattedCustomizations);
         closeModal();
     };
 
     const handleCustomizableItemUpdate = (item, action) => {
-        const cartItem = cart.data?.cart?.items?.find(
-            (cartItem) => cartItem?.item._id === item._id
-        );
-
+        const existingCustomizations = getItemCustomizations(item._id);
         if (action === 'add') {
-            if (!cartItem) {
+            if (!existingCustomizations) {
                 handleModalOpen(item);
             } else {
-                // For existing items, use their current customizations
-                handleCartUpdation(item._id, 'add', cartItem.selectedCustomizations);
+                handleCartUpdation(item._id, 'add', existingCustomizations);
             }
-        } else if (action === 'remove') {
+        } else {
             handleCartUpdation(item._id, 'remove');
         }
     };
 
-    const userLocation = useSelector((state) => state.userLocation);
-    const { lat, lng: lon } = userLocation.coordinates;
-
-    const debouncedSetMenuSearch = useMemo(
-        () => debounce((value) => {
-            setDebouncedMenuSearch(value);
-        }, 300),
-        []
-    );
-
-    useEffect(() => {
-        return () => {
-            debouncedSetMenuSearch.cancel();
-        };
-    }, [debouncedSetMenuSearch]);
-
-    const handleMenuSearchChange = (e) => {
-        const value = e.target.value;
-        setMenuSearchQuery(value);
-        debouncedSetMenuSearch(value);
-    };
-
-    const handleCategoryClick = (category) => {
-        const categoryElement = document.getElementById(category);
-        if (categoryElement) {
-            categoryElement.scrollIntoView({ behavior: 'smooth' });
-            setIsFabOpen(false);
-        }
-    };
-
-    const toggleFavorite = async (itemId) => {
+    // Favorites
+    const toggleFavorite = async (itemId, e) => {
+        e?.stopPropagation();
         try {
             if (favorites.has(itemId)) {
                 await removeFavorite({ foodItemId: itemId });
-                setFavorites((prev) => {
-                    const newFavorites = new Set(prev);
-                    newFavorites.delete(itemId);
-                    return newFavorites;
-                });
-                toast.success("Item removed from favorites!");
+                setFavorites(prev => { const n = new Set(prev); n.delete(itemId); return n; });
+                toast.success("Removed from favorites");
             } else {
                 await addFavorite({ foodItemId: itemId });
-                setFavorites((prev) => new Set(prev).add(itemId));
-                toast.success("Item added to favorites!");
+                setFavorites(prev => new Set(prev).add(itemId));
+                toast.success("Added to favorites");
             }
         } catch (error) {
-            console.error("Error toggling favorite:", error);
-            toast.error("Failed to toggle favorite. Please try again.");
+            toast.error("Failed to update favorites");
         }
     };
 
+    // Category expand/collapse
+    const toggleCategory = (category) => {
+        setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
+    };
+
+    // Handle deep link from home page category click
     useEffect(() => {
-        const fetchMenu = async () => {
-            try {
-                setLoading(true);
-                const response = await getMenuForUser(id, lat, lon);
-
-                if (response?.data) {
-                    setRestaurant(response.data.restaurant);
-                    setMenuItems(response.data.menu);
-                } else {
-                    toast.error("No menu data found");
-                }
-
-                setLoading(false);
-            } catch (error) {
-                console.log(error);
-                toast.error("Failed to load menu");
-                setLoading(false);
-            }
-        };
-
-        const fetchFavourites = async () => {
-            try {
-                const response = await getFavourites();
-                if (response?.data) {
-                    const favoriteIds = response.data.favorites.map((favorite) => favorite.item._id);
-                    setFavorites(new Set(favoriteIds));
-                }
-            } catch (error) {
-                console.error("Error fetching favorites:", error);
-            }
-        };
-
-        if (id && lat && lon) {
-            fetchMenu();
-            fetchFavourites();
-        } else {
-            toast.error("Invalid restaurant or location details");
-            setLoading(false);
+        if (location.state?.foodCategory) {
+            setTimeout(() => {
+                const el = document.getElementById(location.state.foodCategory);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 500);
         }
-    }, [id, lat, lon, dispatch, userCoordinates]);
+    }, [location.state]);
 
-    if (loading) {
-        return <LoadingSpinner message="Loading menu..." />;
-    }
+    // Fetch menu data with React Query (cached)
+    const { data: menuData, isLoading: menuLoading } = useQuery({
+        queryKey: ['menu', id, lat, lon],
+        queryFn: () => getMenuForUser(id, lat, lon),
+        enabled: !!(id && lat && lon),
+        staleTime: 5 * 60 * 1000, // 5 minutes cache
+        cacheTime: 10 * 60 * 1000, // 10 minutes
+        onError: () => toast.error("Failed to load menu"),
+    });
 
+    // Fetch favorites with React Query (cached)
+    const { data: favData } = useQuery({
+        queryKey: ['favorites'],
+        queryFn: () => getFavourites(),
+        staleTime: 5 * 60 * 1000,
+        cacheTime: 10 * 60 * 1000,
+    });
+
+    // Derived state from cached data
+    const restaurant = menuData?.data?.restaurant || null;
+    const menuItems = menuData?.data?.menu || [];
+    const loading = menuLoading;
+
+    // Initialize expanded categories when menu loads
+    useEffect(() => {
+        if (menuItems.length > 0 && Object.keys(expandedCategories).length === 0) {
+            const cats = {};
+            menuItems.forEach(item => {
+                const catName = item.foodCategory?.name || 'Other';
+                cats[catName] = true;
+            });
+            setExpandedCategories(cats);
+        }
+    }, [menuItems, expandedCategories]);
+
+    // Set favorites when data loads
+    useEffect(() => {
+        if (favData?.data?.favorites) {
+            const favoriteIds = favData.data.favorites.map(f => f.item._id);
+            setFavorites(new Set(favoriteIds));
+        }
+    }, [favData]);
+
+    // Computed data
     const { distanceInKm, timeInMinutes } = restaurant ? calculateDistanceAndTime(restaurant.distance) : { distanceInKm: 0, timeInMinutes: 0 };
 
-    const menuByCategory = menuItems.reduce((acc, item) => {
-        const categoryName = item.foodCategory?.name || 'Other';
-        if (!acc[categoryName]) {
-            acc[categoryName] = [];
-        }
-        acc[categoryName].push(item);
-        return acc;
-    }, {});
+    const menuByCategory = useMemo(() => {
+        return menuItems.reduce((acc, item) => {
+            const categoryName = item.foodCategory?.name || 'Other';
+            if (!acc[categoryName]) acc[categoryName] = [];
+            acc[categoryName].push(item);
+            return acc;
+        }, {});
+    }, [menuItems]);
 
-    const sortItems = (items) => {
-        if (sortOrder === 'none') return items;
-        return [...items].sort((a, b) => {
-            if (sortOrder === 'lowToHigh') return a.price - b.price;
-            if (sortOrder === 'highToLow') return b.price - a.price;
-            return 0;
-        });
-    };
-
-    const filteredMenu = Object.entries(menuByCategory).reduce((acc, [category, items]) => {
+    const filteredMenu = useMemo(() => {
         const query = debouncedMenuSearch.toLowerCase().trim();
-        let filteredItems = items;
+        
+        return Object.entries(menuByCategory).reduce((acc, [category, items]) => {
+            let filtered = items;
 
-        if (query) {
-            filteredItems = items.filter(item =>
-                item.name.toLowerCase().includes(query) ||
-                item.description.toLowerCase().includes(query) ||
-                category.toLowerCase().includes(query)
-            );
-        }
+            // Search filter
+            if (query) {
+                filtered = filtered.filter(item =>
+                    item.name.toLowerCase().includes(query) ||
+                    item.description?.toLowerCase().includes(query)
+                );
+            }
 
-        if (filteredItems.length > 0) {
-            acc[category] = sortItems(filteredItems);
-        }
-        return acc;
-    }, {});
+            // Veg only filter
+            if (vegOnly) {
+                filtered = filtered.filter(item => item.isVeg);
+            }
 
-    const hasResults = Object.keys(filteredMenu).length > 0;
+            // Sort
+            if (sortBy === 'price-low') {
+                filtered = [...filtered].sort((a, b) => a.price - b.price);
+            } else if (sortBy === 'price-high') {
+                filtered = [...filtered].sort((a, b) => b.price - a.price);
+            } else if (sortBy === 'rating') {
+                filtered = [...filtered].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            }
+
+            if (filtered.length > 0) acc[category] = filtered;
+            return acc;
+        }, {});
+    }, [menuByCategory, debouncedMenuSearch, vegOnly, sortBy]);
+
+    const totalItems = Object.values(filteredMenu).flat().length;
+    const cartItemCount = cart?.data?.cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+    const cartTotal = cart?.data?.cart?.totalAmount || 0;
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-4">
+                <div className="animate-pulse space-y-6">
+                    <div className="h-64 bg-gray-200 rounded-lg" />
+                    <div className="h-12 bg-gray-200 rounded-lg" />
+                    {[1,2,3].map(i => (
+                        <div key={i} className="bg-white rounded-2xl p-6 flex gap-6">
+                            <div className="flex-1 space-y-3">
+                                <div className="h-6 bg-gray-200 rounded w-3/4" />
+                                <div className="h-4 bg-gray-200 rounded w-full" />
+                                <div className="h-5 bg-gray-200 rounded w-1/4" />
+                            </div>
+                            <div className="w-36 h-36 bg-gray-200 rounded-xl" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <ToastContainer position="top-right" />
-            <Header
-                searchQuery={searchQuery}
-                onSearchChange={(e) => setSearchQuery(e.target.value)}
-                placeholderText="Search foods, restaurants, etc..."
-            />
+        <div className="min-h-screen bg-gray-50 pb-28">
+            {/* Back Button */}
+            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
+                >
+                    <MdArrowBack className="w-5 h-5" />
+                    <span className="font-medium">Back</span>
+                </button>
+            </div>
 
+            {/* Restaurant Card with Outlet-Location Design */}
             {restaurant && (
                 <div className="p-4">
                     <RestaurantCard
@@ -265,242 +292,368 @@ const Menu = () => {
                 </div>
             )}
 
-            {/* Menu Search and Sort Section */}
-            <MenuSearch
-                menuSearchQuery={menuSearchQuery}
-                onSearchChange={handleMenuSearchChange}
-                sortOrder={sortOrder}
-                onSortChange={(e) => setSortOrder(e.target.value)}
-            />
-
-            <div className="fixed bottom-24 lg:bottom-4 right-4 z-50">
-                <button
-                    onClick={() => setIsFabOpen(!isFabOpen)}
-                    className="bg-indigo-600 text-white p-3 rounded-full shadow-lg hover:bg-indigo-700 transition-all"
-                >
-                    <FiMenu size={24} />
-                </button>
-
-                <AnimatePresence>
-                    {isFabOpen && (
-                        <CategoryMenu
-                            isOpen={isFabOpen}
-                            onToggle={() => setIsFabOpen(!isFabOpen)}
-                            categories={Object.keys(menuByCategory)}
-                            onCategoryClick={handleCategoryClick}
+            {/* Search & Filter Bar */}
+            <div className="sticky top-12 z-20 bg-white border-b border-gray-100 px-4 py-4">
+                <div className="flex items-center gap-3">
+                    {/* Search */}
+                    <div className="flex-1 relative">
+                        <MdSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                            type="text"
+                            value={menuSearchQuery}
+                            onChange={(e) => handleMenuSearchChange(e.target.value)}
+                            placeholder="Search in menu"
+                            className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:bg-white focus:border focus:border-orange-300"
                         />
+                        {menuSearchQuery && (
+                            <button
+                                onClick={() => handleMenuSearchChange('')}
+                                className="absolute right-4 top-1/2 -translate-y-1/2"
+                            >
+                                <MdClose className="w-5 h-5 text-gray-400" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter Button */}
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`p-3 rounded-xl border transition-colors ${
+                            showFilters || vegOnly || sortBy !== 'default' 
+                                ? 'border-orange-500 bg-orange-50 text-orange-600' 
+                                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                        <HiOutlineAdjustmentsHorizontal className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Filter Options */}
+                <AnimatePresence>
+                    {showFilters && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="flex flex-wrap gap-2 pt-4">
+                                {/* Veg Only Toggle */}
+                                <button
+                                    onClick={() => setVegOnly(!vegOnly)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                        vegOnly ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <span className={`w-4 h-4 rounded border-2 flex items-center justify-center ${vegOnly ? 'border-white' : 'border-green-600'}`}>
+                                        <span className={`w-2 h-2 rounded-full ${vegOnly ? 'bg-white' : 'bg-green-600'}`} />
+                                    </span>
+                                    Pure Veg
+                                </button>
+
+                                {/* Sort Options */}
+                                {[
+                                    { id: 'default', label: 'Relevance' },
+                                    { id: 'price-low', label: 'Price ↑' },
+                                    { id: 'price-high', label: 'Price ↓' },
+                                    { id: 'rating', label: 'Rating' }
+                                ].map(option => (
+                                    <button
+                                        key={option.id}
+                                        onClick={() => setSortBy(option.id)}
+                                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                                            sortBy === option.id 
+                                                ? 'bg-orange-500 text-white' 
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
                     )}
                 </AnimatePresence>
             </div>
 
-            <div className="pb-20">
-                {!hasResults && debouncedMenuSearch && (
-                    <div className="flex flex-col items-center justify-center py-12">
-                        <p className="text-xl text-gray-600">{`No menu items found matching - "${debouncedMenuSearch}"`}</p>
-                        <p className="text-gray-500 mt-2">Try a different search term</p>
+            {/* Menu Items */}
+            <div className="px-4 py-4">
+                {/* Results count */}
+                {debouncedMenuSearch && (
+                    <p className="text-base text-gray-500 mb-4">
+                        {totalItems} {totalItems === 1 ? 'item' : 'items'} found for "{debouncedMenuSearch}"
+                    </p>
+                )}
+
+                {/* No results */}
+                {totalItems === 0 && (
+                    <div className="text-center py-16">
+                        <p className="text-lg text-gray-600">No items found</p>
+                        {(vegOnly || sortBy !== 'default' || debouncedMenuSearch) && (
+                            <button
+                                onClick={() => { setVegOnly(false); setSortBy('default'); handleMenuSearchChange(''); }}
+                                className="mt-3 text-orange-500 font-medium hover:text-orange-600"
+                            >
+                                Clear all filters
+                            </button>
+                        )}
                     </div>
                 )}
 
+                {/* Categories */}
                 {Object.entries(filteredMenu).map(([categoryName, items]) => (
-                    <div key={categoryName} id={categoryName} className="px-8 py-3">
-                        <h3 className="text-3xl font-extrabold px-3 mb-6 text-gray-800">{categoryName}</h3>
+                    <div key={categoryName} id={categoryName} className="mb-6">
+                        {/* Category Header */}
+                        <button
+                            onClick={() => toggleCategory(categoryName)}
+                            className="w-full flex items-center justify-between py-4 border-b-2 border-gray-200"
+                        >
+                            <h3 className="text-xl font-bold text-gray-900">
+                                {categoryName} <span className="text-gray-500 font-normal">({items.length})</span>
+                            </h3>
+                            {expandedCategories[categoryName] ? (
+                                <MdKeyboardArrowUp className="w-6 h-6 text-gray-500" />
+                            ) : (
+                                <MdKeyboardArrowDown className="w-6 h-6 text-gray-500" />
+                            )}
+                        </button>
 
-                        {items.map((item) => (
-                            <div key={item._id} className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6 flex flex-col lg:flex-row justify-between items-start hover:shadow-xl transition-shadow duration-300">
-                                <div className="flex-1 mb-4 lg:mb-0 w-full lg:w-auto">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <h4 className="text-xl sm:text-2xl font-semibold text-gray-900">{item.name}</h4>
-                                        <button
-                                            onClick={() => toggleFavorite(item._id)}
-                                            className="block lg:hidden p-2 bg-gray-100 rounded-full transition-colors duration-300 ml-2"
+                        {/* Category Items */}
+                        <AnimatePresence>
+                            {expandedCategories[categoryName] && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                >
+                                    {items.map((item, idx) => (
+                                        <div
+                                            key={item._id}
+                                            className={`bg-white rounded-2xl shadow-sm p-5 mt-4 flex gap-5 ${idx !== items.length - 1 ? '' : ''}`}
                                         >
-                                            {favorites.has(item._id) ? (
-                                                <FaHeart className="text-red-500 text-xl sm:text-2xl" />
-                                            ) : (
-                                                <FaRegHeart className="text-gray-400 hover:text-red-500 text-xl sm:text-2xl" />
-                                            )}
-                                        </button>
-                                    </div>
-                                    <p className="text-gray-500 text-sm sm:text-base mb-3">{item.description}</p>
-                                    <p className="text-lg sm:text-xl font-bold text-green-600 mb-3">₹{item.price}</p>
-                                    <p className={`text-sm sm:text-lg font-semibold w-fit ${item?.offers?.offerName ? 'text-green-600 bg-green-200' : 'text-yellow-600 bg-yellow-200'} p-2 rounded-lg mb-3`}>
-                                        {item.offers?.offerName || 'Buy For 500+ Get Free Delivery'}
-                                    </p>
-                                    <button
-                                        onClick={() => toggleFavorite(item._id)}
-                                        className="hidden lg:block p-2 bg-gray-100 rounded-full transition-colors duration-300"
-                                    >
-                                        {favorites.has(item._id) ? (
-                                            <FaHeart className="text-red-500 text-xl sm:text-2xl" />
-                                        ) : (
-                                            <FaRegHeart className="text-gray-400 hover:text-red-500 text-xl sm:text-2xl" />
-                                        )}
-                                    </button>
-                                </div>
-                                <div className="flex flex-col items-center gap-3 w-full lg:w-auto">
-                                    {item.image && (
-                                        <div className="w-full sm:w-40 h-40 mb-3">
-                                            <img
-                                                src={item.image}
-                                                alt={item.name}
-                                                className="w-full h-full object-cover rounded-lg shadow-md"
-                                            />
+                                            {/* Item Info */}
+                                            <div className="flex-1">
+                                                {/* Veg/Non-veg indicator + Customizable */}
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <span className={`w-5 h-5 border-2 ${item.isVeg ? 'border-green-600' : 'border-red-600'} rounded flex items-center justify-center`}>
+                                                        <span className={`w-2.5 h-2.5 rounded-full ${item.isVeg ? 'bg-green-600' : 'bg-red-600'}`} />
+                                                    </span>
+                                                    {item.customizable && (
+                                                        <span className="text-xs text-orange-600 font-semibold bg-orange-50 px-2 py-0.5 rounded">Customizable</span>
+                                                    )}
+                                                </div>
+
+                                                <h4 className="text-xl font-bold text-gray-900">{item.name}</h4>
+                                                <p className="text-lg font-bold text-gray-900 mt-1">₹{item.price}</p>
+                                                
+                                                {item.description && (
+                                                    <p className="text-base text-gray-500 mt-2 line-clamp-2">{item.description}</p>
+                                                )}
+                                                
+                                                {/* Offer */}
+                                                {item.offers?.offerName && (
+                                                    <p className="text-sm text-green-600 font-semibold mt-3 bg-green-50 px-3 py-1.5 rounded-lg inline-block">
+                                                        {item.offers.offerName}
+                                                    </p>
+                                                )}
+
+                                                {/* Favorite Button */}
+                                                <button
+                                                    onClick={(e) => toggleFavorite(item._id, e)}
+                                                    className="mt-3 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                                                >
+                                                    {favorites.has(item._id) ? (
+                                                        <FaHeart className="w-5 h-5 text-red-500" />
+                                                    ) : (
+                                                        <FaRegHeart className="w-5 h-5 text-gray-400" />
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            {/* Image & Add Button */}
+                                            <div className="flex-shrink-0 flex flex-col items-center">
+                                                {item.image ? (
+                                                    <img
+                                                        src={item.image}
+                                                        alt={item.name}
+                                                        className="w-40 h-36 object-cover rounded-2xl shadow-md"
+                                                    />
+                                                ) : (
+                                                    <div className="w-40 h-36 bg-gray-100 rounded-2xl flex items-center justify-center">
+                                                        <span className="text-gray-400 text-sm">No image</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Add/Quantity Button */}
+                                                <div className="-mt-5">
+                                                    {getItemQuantity(item._id) > 0 ? (
+                                                        <div className="flex items-center bg-white border-2 border-green-600 rounded-xl shadow-lg overflow-hidden">
+                                                            <button
+                                                                onClick={() => item.customizable 
+                                                                    ? handleCustomizableItemUpdate(item, 'remove')
+                                                                    : handleCartUpdation(item._id, 'remove')
+                                                                }
+                                                                className="px-4 py-2.5 text-green-600 hover:bg-green-50 transition-colors"
+                                                            >
+                                                                <FaMinus className="w-4 h-4" />
+                                                            </button>
+                                                            <span className="px-4 text-green-600 font-bold text-lg">
+                                                                {getItemQuantity(item._id)}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => item.customizable 
+                                                                    ? handleCustomizableItemUpdate(item, 'add')
+                                                                    : handleCartUpdation(item._id, 'add')
+                                                                }
+                                                                className="px-4 py-2.5 text-green-600 hover:bg-green-50 transition-colors"
+                                                            >
+                                                                <FaPlus className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => item.customizable 
+                                                                ? handleModalOpen(item) 
+                                                                : handleCartUpdation(item._id, 'add')
+                                                            }
+                                                            className="px-8 py-2.5 bg-white border-2 border-green-600 rounded-xl text-green-600 font-bold text-base shadow-lg hover:bg-green-50 transition-colors"
+                                                        >
+                                                            ADD
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
-                                    {item.customizable ? (
-                                        cart.data?.cart?.items?.find(
-                                            (cartItem) => cartItem?.item._id === item._id
-                                        )?.quantity > 0 ? (
-                                            <div className="flex bg-white rounded-lg shadow-md py-2 px-4 border-orange-500 border-2 items-center gap-4 sm:gap-6 w-full lg:w-auto justify-center">
-                                                <button
-                                                    onClick={() => handleCustomizableItemUpdate(item, 'remove')}
-                                                    className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 p-1 rounded-lg transition-colors duration-300"
-                                                >
-                                                    <FaMinus className="text-orange-500 text-lg sm:text-xl" />
-                                                </button>
-                                                <p className="text-xl sm:text-2xl text-orange-500 font-bold">
-                                                    {cart.data?.cart?.items?.find((cartItem) => cartItem?.item._id === item._id)?.quantity}
-                                                </p>
-                                                <button
-                                                    onClick={() => handleCustomizableItemUpdate(item, 'add')}
-                                                    className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 p-1 rounded-lg transition-colors duration-300"
-                                                >
-                                                    <FaPlus className="text-orange-500 text-lg sm:text-xl" />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleModalOpen(item)}
-                                                className="w-full lg:w-auto px-4 py-2 text-xl sm:text-2xl bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors duration-300"
-                                            >
-                                                Add
-                                            </button>
-                                        )
-                                    ) : (
-                                        cart.data?.cart?.items?.find(
-                                            (cartItem) => cartItem?.item._id === item._id
-                                        )?.quantity > 0 ? (
-                                            <div className="flex bg-white rounded-lg shadow-md py-2 px-4 border-orange-500 border-2 items-center gap-4 sm:gap-6 w-full lg:w-auto justify-center">
-                                                <button
-                                                    onClick={() => handleCartUpdation(item._id, 'remove')}
-                                                    className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 p-1 rounded-lg transition-colors duration-300"
-                                                >
-                                                    <FaMinus className="text-orange-500 text-lg sm:text-xl" />
-                                                </button>
-                                                <p className="text-xl sm:text-2xl text-orange-500 font-bold">
-                                                    {cart.data?.cart?.items?.find((cartItem) => cartItem?.item._id === item._id)?.quantity}
-                                                </p>
-                                                <button
-                                                    onClick={() => handleCartUpdation(item._id, 'add')}
-                                                    className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 p-1 rounded-lg transition-colors duration-300"
-                                                >
-                                                    <FaPlus className="text-orange-500 text-lg sm:text-xl" />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleCartUpdation(item._id, 'add')}
-                                                className="w-full lg:w-auto px-4 py-2 text-xl sm:text-2xl bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition-colors duration-300"
-                                            >
-                                                Add
-                                            </button>
-                                        )
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 ))}
             </div>
+
+            {/* Customization Modal */}
             <AnimatePresence>
                 {isModalOpen && selectedItem && (
-                    <motion.div 
-                        className="fixed inset-0 flex items-center justify-center z-50"
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+                        onClick={closeModal}
                     >
                         <motion.div
-                            className="bg-white rounded-xl p-4 sm:p-8 w-[90%] sm:w-[28rem] relative shadow-[0_0_12px_0_rgba(0,0,0,0.3)] mx-4 sm:mx-0"
-                            initial={{ 
-                                opacity: 0,
-                                scale: 0.5,
-                                y: 100
-                            }}
-                            animate={{ 
-                                opacity: 1,
-                                scale: 1,
-                                y: 0,
-                                transition: {
-                                    type: "spring",
-                                    stiffness: 300,
-                                    damping: 20
-                                }
-                            }}
-                            exit={{ 
-                                opacity: 0,
-                                scale: 0.5,
-                                y: 100,
-                                transition: { 
-                                    duration: 0.1 
-                                }
-                            }}
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[85vh] overflow-hidden"
+                            onClick={e => e.stopPropagation()}
                         >
-                            <h2 className="text-xl sm:text-2xl font-bold mb-6">{selectedItem.name}</h2>
-                            <form onSubmit={handleOkClick}>
-                                {selectedItem.customizations.map((customization) => (
-                                    <div key={customization._id} className="mb-6">
-                                        <label className="block text-gray-700 text-sm font-bold mb-3">
-                                            {customization.fieldName}
-                                        </label>
-                                        <div className="flex flex-wrap gap-3">
-                                            {customization.options.map((option) => (
-                                                <motion.button
-                                                    key={option._id}
-                                                    type="button"
-                                                    onClick={() => handleCustomizationChange(customization.fieldName, option)}
-                                                    className={`px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base rounded-lg shadow-sm ${
-                                                        selectedCustomizations[customization.fieldName]?._id === option._id
-                                                            ? 'bg-blue-500 text-white shadow-blue-200' 
-                                                            : 'bg-white border border-gray-200 hover:border-blue-300'
-                                                    }`}
-                                                    whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
-                                                    whileTap={{ scale: 0.97 }}
-                                                >
-                                                    {option.name} - ₹{option.price}
-                                                </motion.button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
+                            {/* Modal Header */}
+                            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-gray-900">{selectedItem.name}</h3>
+                                <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-full">
+                                    <MdClose className="w-6 h-6 text-gray-500" />
+                                </button>
+                            </div>
 
-                                <div className="flex justify-end mt-8 gap-3">
-                                    <motion.button
-                                        type="button"
-                                        onClick={closeModal}
-                                        className="px-4 sm:px-5 py-2 sm:py-2.5 text-sm sm:text-base bg-white border border-gray-200 rounded-lg hover:border-gray-300"
-                                        whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
-                                        whileTap={{ scale: 0.97 }}
-                                    >
-                                        Cancel
-                                    </motion.button>
-                                    <motion.button
-                                        type="submit"
-                                        className="px-4 sm:px-5 py-2 sm:py-2.5 text-sm sm:text-base bg-green-500 text-white rounded-lg shadow-sm shadow-green-200"
-                                        whileHover={{ 
-                                            scale: 1.03,
-                                            backgroundColor: "#22c55e",
-                                            transition: { duration: 0.2 }
-                                        }}
-                                        whileTap={{ scale: 0.97 }}
-                                    >
-                                        Add to Cart
-                                    </motion.button>
-                                </div>
-                            </form>
+                            {/* Customization Options */}
+                            <div className="p-6 overflow-y-auto max-h-[60vh]">
+                                {selectedItem.customizations?.map((customization) => {
+                                    const isVariant = customization.type === 'version';
+                                    return (
+                                        <div key={customization._id} className="mb-8">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="text-lg font-bold text-gray-900">{customization.fieldName}</h4>
+                                                    <span className={`text-xs px-2 py-1 rounded ${
+                                                        isVariant 
+                                                            ? 'bg-blue-100 text-blue-700' 
+                                                            : 'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        {isVariant ? 'Variant' : 'Add-on'}
+                                                    </span>
+                                                </div>
+                                                {customization.required && (
+                                                    <span className="text-xs text-white bg-gray-500 px-2 py-1 rounded">Required</span>
+                                                )}
+                                            </div>
+                                            <div className="space-y-3">
+                                                {customization.options.map((option) => {
+                                                    const isSelected = selectedCustomizations[customization.fieldName]?._id === option._id;
+                                                    return (
+                                                        <button
+                                                            key={option._id}
+                                                            type="button"
+                                                            onClick={() => handleCustomizationChange(customization.fieldName, option)}
+                                                            className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                                                                isSelected 
+                                                                    ? isVariant ? 'border-blue-500 bg-blue-50' : 'border-green-500 bg-green-50'
+                                                                    : 'border-gray-100 hover:border-gray-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                                                    isSelected 
+                                                                        ? isVariant ? 'border-blue-500' : 'border-green-500'
+                                                                        : 'border-gray-300'
+                                                                }`}>
+                                                                    {isSelected && (
+                                                                        <div className={`w-3.5 h-3.5 rounded-full ${
+                                                                            isVariant ? 'bg-blue-500' : 'bg-green-500'
+                                                                        }`} />
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-lg font-medium text-gray-900">{option.name}</span>
+                                                            </div>
+                                                            <span className="text-lg font-bold text-gray-900">
+                                                                {isVariant ? `₹ ${option.price}` : `+ ₹${option.price}`}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="sticky bottom-0 bg-white border-t border-gray-100 p-6">
+                                <button
+                                    onClick={handleAddWithCustomizations}
+                                    className="w-full py-4 bg-green-600 text-white font-bold text-lg rounded-2xl hover:bg-green-700 transition-colors"
+                                >
+                                    Add to Cart • ₹{
+                                        (() => {
+                                            // Find if there's a variant selected - if so, use that price instead of base
+                                            const variantCustomization = selectedItem.customizations?.find(c => c.type === 'version');
+                                            const selectedVariant = variantCustomization 
+                                                ? selectedCustomizations[variantCustomization.fieldName] 
+                                                : null;
+                                            
+                                            // Base price is variant price if selected, otherwise item price
+                                            const basePrice = selectedVariant ? selectedVariant.price : selectedItem.price;
+                                            
+                                            // Add only add-on prices (not variant prices)
+                                            const addOnTotal = Object.entries(selectedCustomizations).reduce((sum, [fieldName, opt]) => {
+                                                const customization = selectedItem.customizations?.find(c => c.fieldName === fieldName);
+                                                // Only add price if it's an add-on (not a variant)
+                                                if (customization?.type !== 'version' && opt?.price) {
+                                                    return sum + opt.price;
+                                                }
+                                                return sum;
+                                            }, 0);
+                                            
+                                            return basePrice + addOnTotal;
+                                        })()
+                                    }
+                                </button>
+                            </div>
                         </motion.div>
                     </motion.div>
-                )} 
+                )}
             </AnimatePresence>
         </div>
     );

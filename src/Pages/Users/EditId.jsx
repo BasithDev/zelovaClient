@@ -1,31 +1,29 @@
 import { useState } from 'react';
-import { FaPaperPlane } from 'react-icons/fa';
-import { motion } from 'framer-motion';
+import { MdArrowBack, MdSend, MdEmail, MdVpnKey } from 'react-icons/md';
 import { useDispatch, useSelector } from 'react-redux';
-import { toast } from 'react-toastify';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { fetchUserData } from '../../Redux/slices/user/userDataSlice';
 import { sendEmailOtp, updateUserEmail } from '../../Services/apiServices';
 
 const EditId = () => {
   const userData = useSelector(state => state.userData.data);
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [newEmail, setNewEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
-  const navigate = useNavigate()
 
   const handleSendOtp = async () => {
     if (!newEmail) {
-      toast.error("Please enter a new email.");
+      toast.error("Please enter a new email");
       return;
     }
     if (newEmail === userData.email) {
-      toast.error("New email should be different from the old email.");
+      toast.error("New email must be different");
       return;
     }
     setIsSendingOtp(true);
@@ -33,13 +31,12 @@ const EditId = () => {
       const response = await sendEmailOtp({ email: newEmail });
       if (response.data.status === 'Success') {
         setIsOtpSent(true);
-        toast.success("OTP sent successfully.");
+        toast.success("OTP sent to your new email");
       } else {
-        toast.error("Failed to send OTP.");
+        toast.error("Failed to send OTP");
       }
     } catch (error) {
-      console.error("Error sending OTP:", error);
-      toast.error("An error occurred.");
+      toast.error("Error sending OTP");
     } finally {
       setIsSendingOtp(false);
     }
@@ -47,7 +44,7 @@ const EditId = () => {
 
   const handleChangeId = async () => {
     if (!otp) {
-      toast.error("Please enter the OTP.");
+      toast.error("Please enter the OTP");
       return;
     }
     setIsChangingEmail(true);
@@ -58,83 +55,166 @@ const EditId = () => {
         otp,
       });
       if (response.data.status === 'Success') {
-        setNewEmail('');
-        setOtp('');
-        setIsOtpSent(false);
-        dispatch(fetchUserData(userData._id))
-        navigate('/profile')
+        toast.success("Email updated successfully");
+        dispatch(fetchUserData(userData._id));
+        navigate('/profile');
       } else {
-        toast.error(response.data.message || "Failed to update email.");
+        toast.error(response.data.message || "Failed to update email");
       }
     } catch (error) {
-      console.error("Error updating email:", error);
-      toast.error("An error occurred while updating the email.");
+      toast.error("Error updating email");
     } finally {
       setIsChangingEmail(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <ToastContainer position="top-right" />
-      <motion.div
-        className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}>
-        <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">Edit Email ID</h2>
-        <div className="mb-4">
-          <label className="block text-gray-600 font-medium">Old Email:</label>
-          <input
-            type="email"
-            value={userData.email}
-            readOnly
-            className="w-full p-3 mt-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200"
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-600 font-medium">New Email:</label>
-          <input
-            type="email"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="Enter new email"
-            className="w-full p-3 mt-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200"
-          />
-        </div>
-        {!isOtpSent ? (
-          <div className="mb-4">
-            <motion.button
-              onClick={handleSendOtp}
-              disabled={isSendingOtp}
-              className={`w-full text-xl font-bold p-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 ${isSendingOtp && 'cursor-wait'}`}
-            >
-              {isSendingOtp ? 'Sending OTP...' : <><FaPaperPlane className="inline mr-2" /> Send OTP</>}
-            </motion.button>
-          </div>
-        ) : (
-          <div className="mb-4">
-            <label className="block text-gray-600 font-medium">Enter OTP:</label>
-            <input
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter OTP"
-              className="w-full p-3 mt-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200"
-            />
-          </div>
-        )}
-        <div className="mt-6">
-          <motion.button
-            onClick={handleChangeId}
-            disabled={isChangingEmail || !otp}
-            className="w-full p-3 bg-orange-500 text-white font-bold text-xl rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 transition duration-300 cursor-pointer"
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-xl mx-auto px-4 py-6">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 mb-6"
+        >
+          <button 
+            onClick={() => navigate('/profile')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            {isChangingEmail ? 'Updating Email...' : 'Change Email ID'}
-          </motion.button>
-        </div>
-      </motion.div>
+            <MdArrowBack className="w-5 h-5 text-gray-600" />
+          </button>
+          <h1 className="text-xl font-semibold text-gray-900">Change Email</h1>
+        </motion.div>
+
+        {/* Form */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-blue-50 rounded-xl">
+              <MdEmail className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Update Email Address</h2>
+              <p className="text-sm text-gray-500">Verify with OTP to change</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Current Email */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Current Email</label>
+              <div className="relative">
+                <MdEmail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="email"
+                  value={userData.email}
+                  readOnly
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500"
+                />
+              </div>
+            </motion.div>
+
+            {/* New Email */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">New Email</label>
+              <div className="relative">
+                <MdEmail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Enter new email"
+                  disabled={isOtpSent}
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 disabled:bg-gray-50 transition-all"
+                />
+              </div>
+            </motion.div>
+
+            {/* Send OTP Button or OTP Input */}
+            <AnimatePresence mode="wait">
+              {!isOtpSent ? (
+                <motion.button
+                  key="send-otp"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: 0.25 }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={handleSendOtp}
+                  disabled={isSendingOtp}
+                  className="w-full py-3.5 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  {isSendingOtp ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Sending...
+                    </span>
+                  ) : (
+                    <>
+                      <MdSend className="w-5 h-5" />
+                      Send OTP
+                    </>
+                  )}
+                </motion.button>
+              ) : (
+                <motion.div
+                  key="otp-input"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter OTP</label>
+                    <div className="relative">
+                      <MdVpnKey className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        placeholder="Enter 6-digit OTP"
+                        className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        maxLength={6}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1.5">Check your new email for the OTP</p>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={handleChangeId}
+                    disabled={isChangingEmail || !otp}
+                    className="w-full py-3.5 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  >
+                    {isChangingEmail ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Updating...
+                      </span>
+                    ) : (
+                      'Update Email'
+                    )}
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };
+
 export default EditId;

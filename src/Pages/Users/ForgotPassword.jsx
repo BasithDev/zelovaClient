@@ -5,7 +5,7 @@ import PrimaryBtn from '../../Components/Buttons/PrimaryBtn';
 import { MdAlternateEmail } from "react-icons/md";
 import { RiLockPasswordFill } from "react-icons/ri";
 import { FaKey } from "react-icons/fa";
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer, toast } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 import { BeatLoader } from 'react-spinners';
 import { useNavigate } from 'react-router-dom';

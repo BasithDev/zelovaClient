@@ -1,20 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
-import 'react-tooltip/dist/react-tooltip.css';
 import { useDispatch, useSelector } from 'react-redux';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { toast } from "react-toastify";
+import { motion } from 'framer-motion';
+import { MdArrowBack, MdRestaurant } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
 import RestaurantLocation from './RestaurantMng/RestaurantLocation';
 import { updateRestaurantDetails } from '../../Services/apiServices';
 import { fetchRestaurantData } from '../../Redux/slices/seller/restaurantDataSlice';
 import RestaurantEdit from './RestaurantMng/RestaurantEdit';
 
-
 const ManageRestaurant = () => {
+    const navigate = useNavigate();
     const restaurantData = useSelector((state) => state.restaurantData.data?.restaurant);
     const [isEditing, setIsEditing] = useState(false);
     const [coordinates, setCoordinates] = useState({ lat: 0, lng: 0 });
-    const dispatch = useDispatch()
+    const dispatch = useDispatch();
+    
     const defaultDetails = useMemo(
         () => ({
             name: "No name",
@@ -53,28 +54,26 @@ const ManageRestaurant = () => {
         });
 
         if (!hasChanges) {
-            toast.info('No changes detected!');
-            setIsEditing(false)
+            toast.info('No changes detected');
+            setIsEditing(false);
             return;
         }
 
         try {
             await updateRestaurantDetails(restaurantDetails);
-            toast.success('Restaurant details updated successfully!');
-            dispatch(fetchRestaurantData())
+            toast.success('Restaurant updated successfully');
+            dispatch(fetchRestaurantData());
         } catch (error) {
             console.error(error);
-            toast.error('An error occurred while updating restaurant details!');
-        } finally{
-            setIsEditing(false)
+            toast.error('Failed to update restaurant');
+        } finally {
+            setIsEditing(false);
         }
-
     };
 
     const handleFieldChange = (field, value) => {
         setRestaurantDetails((prev) => ({ ...prev, [field]: value }));
     };
-    
 
     const detailFields = {
         "Restaurant Name": "name",
@@ -85,24 +84,51 @@ const ManageRestaurant = () => {
     };
     
     return (
-        <div className="container mx-auto px-4 py-6 sm:py-10">
-            <ToastContainer position="top-right" />
-            <h1 className="text-2xl sm:text-4xl font-bold text-center mb-6 sm:mb-8">Manage Restaurant</h1>
+        <div className="min-h-screen bg-gray-50">
+            <div className="max-w-3xl mx-auto px-4 py-6">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 mb-6"
+                >
+                    <button 
+                        onClick={() => navigate('/vendor')}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <MdArrowBack className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <MdRestaurant className="w-6 h-6 text-orange-500" />
+                        <h1 className="text-xl font-semibold text-gray-900">Manage Restaurant</h1>
+                    </div>
+                </motion.div>
 
-            <RestaurantEdit
-                restaurantDetails={restaurantDetails}
-                isEditing={isEditing}
-                handleFieldChange={handleFieldChange}
-                saveChanges={saveChanges}
-                setIsEditing={setIsEditing}
-                detailFields={detailFields}
-            />
-            <RestaurantLocation
-                restaurantDetails={restaurantDetails}
-                setRestaurantDetails={setRestaurantDetails}
-                coordinates={coordinates}
-                setCoordinates={setCoordinates}
-            />
+                {/* Restaurant Edit Component */}
+                <RestaurantEdit
+                    restaurantDetails={restaurantDetails}
+                    isEditing={isEditing}
+                    handleFieldChange={handleFieldChange}
+                    saveChanges={saveChanges}
+                    setIsEditing={setIsEditing}
+                    detailFields={detailFields}
+                />
+
+                {/* Location Component */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="mt-6"
+                >
+                    <RestaurantLocation
+                        restaurantDetails={restaurantDetails}
+                        setRestaurantDetails={setRestaurantDetails}
+                        coordinates={coordinates}
+                        setCoordinates={setCoordinates}
+                    />
+                </motion.div>
+            </div>
         </div>
     );
 };

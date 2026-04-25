@@ -2,7 +2,7 @@ import { useState} from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 import * as Yup from 'yup';
 import { BeatLoader } from 'react-spinners';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { getAnnouncementTemp, addAnnouncementTemp, deleteAnnouncementTemp } from '../../Services/apiServices';
 import { MdDelete } from 'react-icons/md';
 import PropTypes from 'prop-types';

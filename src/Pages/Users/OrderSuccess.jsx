@@ -90,14 +90,14 @@ const OrderSuccess = () => {
                         >
                             <motion.div
                                 onClick={handleScratch}
-                                className="relative w-full h-32 bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 rounded-xl cursor-pointer shadow-lg overflow-hidden group"
+                                className="relative w-full h-32 bg-gradient-to-r from-orange-400 to-orange-600 rounded-xl cursor-pointer shadow-lg overflow-hidden group"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                             >
-                                <div className="absolute inset-0 bg-white bg-opacity-20 backdrop-blur-sm group-hover:backdrop-blur-0 transition-all duration-300" />
+                                <div className="absolute inset-0 bg-white bg-opacity-10 group-hover:bg-opacity-0 transition-all duration-300" />
                                 <div className="relative h-full flex items-center justify-center">
                                     <p className="text-lg sm:text-xl text-white font-bold px-4 text-center">
-                                        Scratch to Reveal Your Reward!
+                                        Click to Reveal Your Reward!
                                     </p>
                                 </div>
                             </motion.div>
@@ -107,7 +107,7 @@ const OrderSuccess = () => {
                             key="reward-reveal"
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="mt-8 w-full sm:w-80 h-32 bg-gradient-to-r from-purple-100 to-orange-100 rounded-xl flex items-center justify-center p-4 shadow-inner"
+                            className="mt-8 w-full sm:w-80 h-32 bg-gradient-to-r from-orange-100 to-orange-200 rounded-xl flex items-center justify-center p-4 shadow-inner border border-orange-200"
                         >
                             <div className="text-center">
                                 <p className="text-lg sm:text-xl text-gray-800">

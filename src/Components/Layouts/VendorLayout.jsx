@@ -6,11 +6,12 @@ import { useDispatch } from 'react-redux';
 import { logoutUser } from "../../Redux/slices/user/authUserSlice";
 import { fetchRestaurantData } from "../../Redux/slices/seller/restaurantDataSlice";
 
-import { MdHome, MdPerson, MdRestaurant, MdReceiptLong } from "react-icons/md";
+import { MdHome, MdPerson, MdRestaurant, MdReceiptLong, MdChevronLeft, MdChevronRight } from "react-icons/md";
 import { IoMdLogOut } from "react-icons/io";
 import { IoFastFoodOutline } from "react-icons/io5";
-import { BiFoodMenu } from "react-icons/bi";
+import { BiFoodMenu, BiCategoryAlt } from "react-icons/bi";
 import { BsThreeDots } from "react-icons/bs";
+import { HiOutlineTag } from "react-icons/hi";
 
 const VendorLayout = () => {
     const navigate = useNavigate();
@@ -19,6 +20,7 @@ const VendorLayout = () => {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     useEffect(() => {
         dispatch(fetchRestaurantData());
@@ -38,207 +40,214 @@ const VendorLayout = () => {
         }
     };
 
+    const navItems = [
+        { path: '/vendor', label: 'Home', icon: MdHome },
+        { path: '/vendor/orders', label: 'Orders', icon: MdReceiptLong },
+        { path: '/vendor/manage-restaurant', label: 'Restaurant', icon: MdRestaurant },
+        { path: '/vendor/menu', label: 'Menu', icon: BiFoodMenu },
+        { path: '/vendor/add-items', label: 'Add Item', icon: IoFastFoodOutline },
+        { path: '/vendor/categories', label: 'Categories', icon: BiCategoryAlt },
+        { path: '/vendor/offers', label: 'Offers', icon: HiOutlineTag },
+    ];
+
+    const sidebarWidth = isCollapsed ? 'w-[70px]' : 'w-[240px]';
+    const mainMargin = isCollapsed ? 'lg:ml-[70px]' : 'lg:ml-[240px]';
+
     return (
-        <div className="flex flex-col lg:flex-row min-h-screen relative">
+        <div className="flex flex-col lg:flex-row min-h-screen relative bg-slate-50">
             {/* Desktop Sidebar */}
-            <aside className="hidden lg:flex bg-gray-100 h-screen w-[280px] fixed top-0 left-0 bottom-0 text-center shadow-lg flex-col justify-between overflow-y-auto">
-                <div>
-                    <p className="text-4xl lg:text-5xl font-semibold mt-3 mb-5 text-transparent bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text cursor-pointer">
-                        Zelova<span className="ms-1 text-xl text-green-600">Kitchen</span>
-                    </p>
-                    <nav className="space-y-4">
-                        {/* Desktop Navigation Items */}
-                        <div onClick={() => navigate('/vendor')} className={`flex items-center gap-3 hover:scale-105 cursor-pointer p-3 mx-4 rounded-lg transition-all ${location.pathname === '/vendor' ? 'bg-orange-400 text-white hover:bg-orange-500' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
-                            <MdHome className="text-2xl" />
-                            <p className="text-lg font-semibold">Home</p>
-                        </div>
-                        <div onClick={() => navigate('/vendor/orders')} className={`flex items-center gap-3 hover:scale-105 cursor-pointer p-3 mx-4 rounded-lg transition-all ${location.pathname === '/vendor/orders' ? 'bg-orange-400 text-white hover:bg-orange-500' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
-                            <MdReceiptLong className="text-2xl" />
-                            <p className="text-lg font-semibold">Orders</p>
-                        </div>
-                        <div onClick={() => navigate('/vendor/menu')} className={`flex items-center gap-3 hover:scale-105 cursor-pointer p-3 mx-4 rounded-lg transition-all ${location.pathname === '/vendor/menu' ? 'bg-orange-400 text-white hover:bg-orange-500' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
-                            <BiFoodMenu className="text-2xl" />
-                            <p className="text-lg font-semibold">Menu</p>
-                        </div>
-                        <div onClick={() => navigate('/vendor/manage-restaurant')} className={`flex items-center gap-3 hover:scale-105 cursor-pointer p-3 mx-4 rounded-lg transition-all ${location.pathname === '/vendor/manage-restaurant' ? 'bg-orange-400 text-white hover:bg-orange-500' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
-                            <MdRestaurant className="text-2xl" />
-                            <p className="text-lg font-semibold">Manage Restaurant</p>
-                        </div>
-                        <div onClick={() => navigate('/vendor/add-items')} className={`flex items-center gap-3 hover:scale-105 cursor-pointer p-3 mx-4 rounded-lg transition-all ${location.pathname === '/vendor/add-items' ? 'bg-orange-400 text-white hover:bg-orange-500' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}>
-                            <IoFastFoodOutline className="text-2xl" />
-                            <p className="text-lg font-semibold">Add Items</p>
-                        </div>
-                        <motion.div
-                            onClick={() => navigate('/')}
-                            className="flex hover:scale-105 items-center cursor-pointer p-3 mx-4 bg-blue-200 rounded-lg transition-all duration-300 hover:bg-blue-300"
-                            whileHover="hover"
-                        >
-                            <motion.p
-                                className="text-lg font-semibold text-blue-600"
-                                variants={{
-                                    hover: { opacity: 0 },
-                                }}
-                                transition={{ type: "tween", duration: 0.4 }}
-                            >
-                                <MdPerson className="text-xl text-blue-600 mr-2" />
-                            </motion.p>
-                            <motion.p
-                                className="text-lg font-semibold text-blue-600"
-                                variants={{
-                                    hover: {
-                                        scale: 1.1,
-                                        fontWeight: 600,
-                                    },
-                                }}
-                                transition={{ type: "tween", duration: 0.4 }}
-                            >
-                                Switch to User
-                            </motion.p>
-                        </motion.div>
-                    </nav>
-                </div>
-                <div className="mb-6 mx-4">
-                    <div
-                        onClick={() => setShowLogoutConfirm(true)}
-                        className="flex items-center justify-center gap-2 cursor-pointer p-3 mt-3 border-2 border-red-500 text-red-600 rounded-lg transition-all hover:scale-105 hover:bg-red-100"
-                    >
-                        <p className="font-semibold">Logout</p>
-                        <IoMdLogOut className="text-xl" />
+            <aside className={`hidden lg:flex ${sidebarWidth} h-screen fixed top-0 left-0 bottom-0 flex-col bg-white border-r border-slate-200 transition-all duration-300 z-40`}>
+                {/* Header */}
+                <div className={`relative p-4 border-b border-slate-100 ${isCollapsed ? 'flex justify-center' : ''}`}>
+                    <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
+                        <p className="text-2xl font-bold text-transparent bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text">
+                            Zelova
+                        </p>
+                        <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Kitchen</span>
                     </div>
+                    {isCollapsed && (
+                        <p className="text-2xl font-bold text-transparent bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text">
+                            Z
+                        </p>
+                    )}
+                    
+                    {/* Collapse Toggle Button */}
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors"
+                    >
+                        {isCollapsed ? (
+                            <MdChevronRight className="w-4 h-4 text-slate-600" />
+                        ) : (
+                            <MdChevronLeft className="w-4 h-4 text-slate-600" />
+                        )}
+                    </button>
+                </div>
+
+                {/* Navigation */}
+                <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                    {navItems.map((item) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                            <motion.button
+                                key={item.path}
+                                onClick={() => navigate(item.path)}
+                                whileHover={{ x: 2 }}
+                                whileTap={{ scale: 0.98 }}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                                    isActive 
+                                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-200' 
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                } ${isCollapsed ? 'justify-center px-2' : ''}`}
+                                title={isCollapsed ? item.label : ''}
+                            >
+                                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
+                                {!isCollapsed && (
+                                    <span className={`font-medium ${isActive ? 'text-white' : ''}`}>
+                                        {item.label}
+                                    </span>
+                                )}
+                            </motion.button>
+                        );
+                    })}
+
+                    {/* Switch to User */}
+                    <motion.button
+                        onClick={() => navigate('/')}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all mt-4 ${
+                            isCollapsed ? 'justify-center px-2' : ''
+                        }`}
+                        title={isCollapsed ? 'Switch to User' : ''}
+                    >
+                        <MdPerson className="w-5 h-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="font-medium">Switch to User</span>}
+                    </motion.button>
+                </nav>
+
+                {/* Footer */}
+                <div className="p-2 border-t border-slate-100">
+                    <motion.button
+                        onClick={() => setShowLogoutConfirm(true)}
+                        whileHover={{ x: 2 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 transition-all ${
+                            isCollapsed ? 'justify-center px-2' : ''
+                        }`}
+                        title={isCollapsed ? 'Logout' : ''}
+                    >
+                        <IoMdLogOut className="w-5 h-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="font-medium">Logout</span>}
+                    </motion.button>
                 </div>
             </aside>
 
             {/* Mobile Header */}
-            <div className="lg:hidden fixed top-0 w-full bg-white shadow-md z-50 p-4">
-                <p className="text-2xl lg:text-3xl font-bold text-left text-transparent bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text">
-                    Zelova<span className="ms-1 text-sm font-extrabold text-green-600">Kitchen</span>
+            <div className="lg:hidden fixed top-0 w-full bg-white border-b border-slate-200 z-50 px-4 py-3">
+                <p className="text-xl font-bold text-transparent bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text">
+                    Zelova <span className="text-sm font-semibold text-emerald-600">Kitchen</span>
                 </p>
             </div>
 
             {/* Main Content */}
-            <main className="lg:ml-[280px] flex-1 mt-16 lg:mt-0 mb-20 lg:mb-0">
+            <main className={`${mainMargin} flex-1 mt-14 lg:mt-0 mb-16 lg:mb-0 transition-all duration-300`}>
                 <Outlet />
             </main>
 
             {/* Mobile Bottom Navigation */}
-            <div className="lg:hidden fixed bottom-0 w-full bg-white shadow-lg z-50">
-                <div className="flex justify-around items-center p-3">
-                    <div
-                        onClick={() => navigate('/vendor')}
-                        className={`flex flex-col items-center ${location.pathname === '/vendor' ? 'text-orange-500' : 'text-gray-500'}`}
-                    >
-                        <MdHome className="text-2xl" />
-                        <span className="text-xs mt-1">Home</span>
-                    </div>
-                    <div
-                        onClick={() => navigate('/vendor/orders')}
-                        className={`flex flex-col items-center ${location.pathname === '/vendor/orders' ? 'text-orange-500' : 'text-gray-500'}`}
-                    >
-                        <MdReceiptLong className="text-2xl" />
-                        <span className="text-xs mt-1">Orders</span>
-                    </div>
-                    <div
-                        onClick={() => navigate('/vendor/menu')}
-                        className={`flex flex-col items-center ${location.pathname === '/vendor/menu' ? 'text-orange-500' : 'text-gray-500'}`}
-                    >
-                        <BiFoodMenu className="text-2xl" />
-                        <span className="text-xs mt-1">Menu</span>
-                    </div>
+            <div className="lg:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-50">
+                <div className="flex justify-around items-center py-2">
+                    {navItems.slice(0, 3).map((item) => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                            <button
+                                key={item.path}
+                                onClick={() => navigate(item.path)}
+                                className={`flex flex-col items-center p-2 ${
+                                    isActive ? 'text-orange-500' : 'text-slate-500'
+                                }`}
+                            >
+                                <item.icon className="text-xl" />
+                                <span className="text-xs mt-0.5">{item.label}</span>
+                            </button>
+                        );
+                    })}
                     <div className="relative">
-                        <div
+                        <button
                             onClick={() => setShowMoreMenu(!showMoreMenu)}
-                            className={`flex flex-col items-center ${
+                            className={`flex flex-col items-center p-2 ${
+                                showMoreMenu || 
                                 location.pathname === '/vendor/add-items' || 
-                                location.pathname === '/vendor/manage-restaurant' || 
-                                showMoreMenu 
+                                location.pathname === '/vendor/manage-restaurant'
                                     ? 'text-orange-500' 
-                                    : 'text-gray-500'
+                                    : 'text-slate-500'
                             }`}
                         >
-                            <BsThreeDots className="text-2xl" />
-                            <span className="text-xs mt-1">More</span>
-                        </div>
+                            <BsThreeDots className="text-xl" />
+                            <span className="text-xs mt-0.5">More</span>
+                        </button>
                         
                         {/* More Menu Dropdown */}
                         <AnimatePresence>
                             {showMoreMenu && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: -20 }}
+                                    initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="absolute bottom-full right-[-8px] mb-2 bg-white rounded-lg shadow-lg z-50 min-w-[220px] overflow-hidden"
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="absolute bottom-full right-0 mb-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden min-w-[180px]"
                                 >
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="p-4 border-b"
-                                    >
-                                        <p className="font-semibold text-gray-700">Additional Options</p>
-                                    </motion.div>
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.1 }}
-                                        className="p-2"
-                                    >
-                                        <motion.button
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
+                                    <div className="p-1">
+                                        <button
                                             onClick={() => {
                                                 navigate('/vendor/manage-restaurant');
                                                 setShowMoreMenu(false);
                                             }}
-                                            className={`w-full flex items-center gap-2 text-left px-4 py-2 rounded-lg ${
+                                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
                                                 location.pathname === '/vendor/manage-restaurant'
-                                                    ? 'bg-orange-100 text-orange-500'
-                                                    : 'hover:bg-gray-100'
+                                                    ? 'bg-orange-50 text-orange-600'
+                                                    : 'hover:bg-slate-50'
                                             }`}
                                         >
-                                            <MdRestaurant className="text-xl" />
-                                            <span>Manage Restaurant</span>
-                                        </motion.button>
-                                        <motion.button
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
+                                            <MdRestaurant className="text-lg" />
+                                            Restaurant
+                                        </button>
+                                        <button
                                             onClick={() => {
                                                 navigate('/vendor/add-items');
                                                 setShowMoreMenu(false);
                                             }}
-                                            className={`w-full flex items-center gap-2 text-left px-4 py-2 rounded-lg ${
+                                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
                                                 location.pathname === '/vendor/add-items'
-                                                    ? 'bg-orange-100 text-orange-500'
-                                                    : 'hover:bg-gray-100'
+                                                    ? 'bg-orange-50 text-orange-600'
+                                                    : 'hover:bg-slate-50'
                                             }`}
                                         >
-                                            <IoFastFoodOutline className="text-xl" />
-                                            <span>Add Items</span>
-                                        </motion.button>
-                                        <motion.button
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
+                                            <IoFastFoodOutline className="text-lg" />
+                                            Add Items
+                                        </button>
+                                        <hr className="my-1" />
+                                        <button
                                             onClick={() => {
                                                 navigate('/');
                                                 setShowMoreMenu(false);
                                             }}
-                                            className="w-full flex items-center gap-2 text-left px-4 py-2 rounded-lg hover:bg-gray-100"
+                                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-blue-600 hover:bg-blue-50"
                                         >
-                                            <MdPerson className="text-xl text-blue-600" />
-                                            <span className="text-blue-600">Switch to User</span>
-                                        </motion.button>
-                                        <motion.button
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
+                                            <MdPerson className="text-lg" />
+                                            Switch to User
+                                        </button>
+                                        <button
                                             onClick={() => {
                                                 setShowLogoutConfirm(true);
                                                 setShowMoreMenu(false);
                                             }}
-                                            className="w-full flex items-center gap-2 text-left px-4 py-2 rounded-lg text-red-500 hover:bg-red-50"
+                                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50"
                                         >
-                                            <IoMdLogOut className="text-xl" />
-                                            <span>Logout</span>
-                                        </motion.button>
-                                    </motion.div>
+                                            <IoMdLogOut className="text-lg" />
+                                            Logout
+                                        </button>
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -253,31 +262,36 @@ const VendorLayout = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
                     >
                         <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4"
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full"
                         >
-                            <h3 className="text-xl font-semibold mb-4">Confirm Logout</h3>
-                            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
-                            <div className="flex justify-end gap-4">
-                                <button
-                                    onClick={() => setShowLogoutConfirm(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                    disabled={isLoggingOut}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleLogout}
-                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                    disabled={isLoggingOut}
-                                >
-                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
-                                </button>
+                            <div className="text-center">
+                                <div className="w-12 h-12 mx-auto mb-4 bg-rose-100 rounded-full flex items-center justify-center">
+                                    <IoMdLogOut className="w-6 h-6 text-rose-600" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-slate-900 mb-2">Confirm Logout</h3>
+                                <p className="text-slate-600 text-sm mb-6">Are you sure you want to log out of your account?</p>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setShowLogoutConfirm(false)}
+                                        className="flex-1 px-4 py-2.5 text-slate-700 bg-slate-100 rounded-xl font-medium hover:bg-slate-200 transition-colors"
+                                        disabled={isLoggingOut}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl font-medium hover:bg-rose-700 transition-colors"
+                                        disabled={isLoggingOut}
+                                    >
+                                        {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>

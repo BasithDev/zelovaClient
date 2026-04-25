@@ -1,16 +1,14 @@
 import PropTypes from "prop-types";
 import { AnimatePresence, motion } from 'framer-motion';
-import { MdEdit } from 'react-icons/md';
-import { FaStar, FaPhoneAlt } from 'react-icons/fa';
-import InputField from '../../../Components/Common/InputField';
-import { useState, useEffect } from "react";
+import { MdEdit, MdPhone, MdAccessTime, MdStore, MdDescription, MdClose, MdCheck, MdCameraAlt, MdRestaurant, MdCloudUpload } from 'react-icons/md';
+import { FaStar } from 'react-icons/fa';
+import { useState, useEffect, useRef } from "react";
 import { openOrCloseShop, updateRestaurantPic } from "../../../Services/apiServices";
-import { IoIosCloseCircle } from "react-icons/io";
 import { uploadImageToCloud } from "../../../Helpers/uploadImageToCloud";
-import {BeatLoader,ClipLoader} from 'react-spinners'
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
 import { fetchRestaurantData } from "../../../Redux/slices/seller/restaurantDataSlice";
+import ImageCropper from "../../../Components/Common/ImageCropper";
 
 const RestaurantEdit = ({
     restaurantDetails,
@@ -22,11 +20,15 @@ const RestaurantEdit = ({
 }) => {
     const [isOpen, setIsOpen] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [isImageUpdating,setIsImageUpdating] = useState(false)
-    const [showPopup, setShowPopup] = useState(false);
-    const [selectedImage, setSelectedImage] = useState(null);
-    const [isImageLoaded,setIsImageLoaded] = useState(false)
-    const dispatch = useDispatch()
+    const [isImageUpdating, setIsImageUpdating] = useState(false);
+    const [showImageModal, setShowImageModal] = useState(false);
+    const [showCropper, setShowCropper] = useState(false);
+    const [selectedImageSrc, setSelectedImageSrc] = useState(null);
+    const [croppedImage, setCroppedImage] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const fileInputRef = useRef(null);
+    const dispatch = useDispatch();
+
     useEffect(() => {
         if (restaurantDetails && typeof restaurantDetails.isActive === "boolean") {
             setIsOpen(restaurantDetails.isActive);
@@ -36,189 +38,341 @@ const RestaurantEdit = ({
     const handleImageSelect = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setSelectedImage(file);
+            const reader = new FileReader();
+            reader.onload = () => {
+                setSelectedImageSrc(reader.result);
+                setShowCropper(true);
+            };
+            reader.readAsDataURL(file);
         }
+    };
+
+    const handleCropComplete = (croppedDataUrl) => {
+        setCroppedImage(croppedDataUrl);
+        setShowCropper(false);
     };
 
     const extractPublicId = (url) => {
         const regex = /\/v(\d+)\/(.*)\./;
         const match = url.match(regex);
-        if (match) {
-          return match[2];
-        }
-        return null;
-      };
+        return match ? match[2] : null;
+    };
+
+    const dataURLtoBlob = (dataURL) => {
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        return new Blob([u8arr], { type: mime });
+    };
 
     const handleUpdateImage = async () => {
+        if (!croppedImage) {
+            toast.info("Please select and crop an image first");
+            return;
+        }
+        setIsImageUpdating(true);
         try {
-            if (!selectedImage) {
-                toast.info("Please select an image before updating.")
-                return;
-            }
-            setIsImageUpdating(true)
-            const cloudResponse = await uploadImageToCloud(selectedImage);
+            const blob = dataURLtoBlob(croppedImage);
+            const file = new File([blob], 'restaurant-image.jpg', { type: 'image/jpeg' });
+            const cloudResponse = await uploadImageToCloud(file);
             if (cloudResponse) {
-                let public_id = null;
-                if (restaurantDetails.image) {
-                    public_id = extractPublicId(restaurantDetails.image);
-                }
-                const imageURL = cloudResponse.secure_url
+                const public_id = restaurantDetails.image ? extractPublicId(restaurantDetails.image) : null;
                 await updateRestaurantPic({
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ imageURL, public_id })
+                    imageURL: cloudResponse.secure_url,
+                    public_id
                 });
-                toast.success("Image updated successfully!")
-                setShowPopup(false);
-                dispatch(fetchRestaurantData())
-            } else {
-                throw new Error("Failed to upload image.");
+                toast.success("Image updated successfully");
+                handleCloseModal();
+                dispatch(fetchRestaurantData());
             }
         } catch (error) {
-            console.error("Error updating image:", error);
-            toast.error("Error updating image. Please try again.")
+            toast.error("Failed to update image");
         } finally {
-            setIsImageUpdating(false)
+            setIsImageUpdating(false);
         }
     };
 
+    const handleCloseModal = () => {
+        setShowImageModal(false);
+        setSelectedImageSrc(null);
+        setCroppedImage(null);
+    };
+
     const toggleShopStatus = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const updatedStatus = !isOpen;
-            await openOrCloseShop(updatedStatus);
-            setIsOpen(updatedStatus);
-            dispatch(fetchRestaurantData())
+            await openOrCloseShop(!isOpen);
+            setIsOpen(!isOpen);
+            dispatch(fetchRestaurantData());
+            toast.success(isOpen ? "Restaurant is now closed" : "Restaurant is now open");
         } catch (error) {
-            console.error("Error updating shop status:", error);
+            toast.error("Failed to update status");
         } finally {
             setLoading(false);
         }
     };
 
+    const handleSave = async () => {
+        setIsSaving(true);
+        await saveChanges();
+        setIsSaving(false);
+    };
+
+    const fieldIcons = {
+        name: MdStore,
+        description: MdDescription,
+        phone: MdPhone,
+        openingTime: MdAccessTime,
+        closingTime: MdAccessTime,
+    };
+
     return (
-        <div>
+        <div className="">
+            {/* Restaurant Header Card */}
             <motion.div
-                className="flex relative flex-col md:flex-row max-w-6xl mx-auto rounded-lg shadow-2xl overflow-hidden p-3 sm:p-4 bg-slate-100 mb-6 sm:mb-8"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
             >
-                <div className="relative rounded-lg w-full md:w-fit h-64 sm:h-80 md:h-auto group">
-                    {!isImageLoaded && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                            <ClipLoader color="#22c55e" size={40} />
+                {/* Image Section */}
+                <div className="relative h-48 sm:h-64 bg-gradient-to-br from-gray-800 to-gray-900">
+                    {restaurantDetails.image && !restaurantDetails.image.includes('no-image') && !restaurantDetails.image.includes('placeholder') && !restaurantDetails.image.includes('pngtree') ? (
+                        <img
+                            src={restaurantDetails.image}
+                            alt={restaurantDetails.name}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center">
+                            <MdRestaurant className="w-16 h-16 text-gray-600 mb-2" />
+                            <p className="text-gray-500 text-sm">No cover image</p>
                         </div>
                     )}
-                    <img
-                        src={restaurantDetails.image}
-                        alt="Restaurant"
-                        loading="lazy"
-                        className="w-full h-full object-cover md:object-contain md:h-80 rounded-lg shadow-xl"
-                        onLoad={() => setIsImageLoaded(true)}
-                    />
-                    <MdEdit
-                        onClick={() => setShowPopup(true)}
-                        className="absolute bottom-2 right-2 flex items-center text-2xl sm:text-3xl bg-green-500 hover:bg-green-600 bg-opacity-80 cursor-pointer p-1 justify-center text-white hover:text-gray-300 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full"
-                    />
+                    
+                    {/* Status Badge */}
+                    <button
+                        onClick={toggleShopStatus}
+                        disabled={loading}
+                        className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-sm font-semibold shadow-lg transition-all ${
+                            isOpen ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                        }`}
+                    >
+                        {loading ? (
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                        ) : isOpen ? 'Open' : 'Closed'}
+                    </button>
+
+                    {/* Edit Image Button */}
+                    <button
+                        onClick={() => setShowImageModal(true)}
+                        className="absolute bottom-4 right-4 p-2.5 bg-white/90 hover:bg-white rounded-full shadow-lg transition-all"
+                    >
+                        <MdCameraAlt className="w-5 h-5 text-gray-700" />
+                    </button>
                 </div>
 
-                <motion.button
-                    onClick={toggleShopStatus}
-                    className={`absolute top-4 right-4 px-2 sm:px-3 py-1 text-base sm:text-xl font-semibold rounded-md text-white ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                >
-                    {loading ? <BeatLoader color="white" size={8} /> : isOpen ? "Open" : "Closed"}
-                </motion.button>
-
-                <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between mt-4 md:mt-0">
-                    <h2 className="text-2xl sm:text-4xl font-semibold text-gray-800 mb-3 sm:mb-4">{restaurantDetails.name}</h2>
-                    <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">{restaurantDetails.description}</p>
-                    <div className="flex items-center mb-4 sm:mb-6 bg-green-500 text-white py-1 px-2 rounded-md w-max">
-                        <FaStar className="mr-2 text-xl sm:text-2xl text-yellow-400" />
-                        <span className="font-semibold text-xl sm:text-2xl">4.7</span>
-                    </div>
-                    <p className="text-base sm:text-lg font-medium text-gray-800 mb-2">Contact Information:</p>
-                    <div className="space-y-2 text-gray-600">
-                        <div className="flex items-center">
-                            <FaPhoneAlt className="mr-2 text-gray-500" />
-                            <span className="text-sm sm:text-base">{restaurantDetails.phone}</span>
+                {/* Restaurant Info */}
+                <div className="p-5">
+                    <div className="flex items-start justify-between mb-3">
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900">{restaurantDetails.name || 'Restaurant Name'}</h2>
+                            <p className="text-sm text-gray-500 mt-1">{restaurantDetails.description || 'No description'}</p>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white rounded-lg text-sm font-semibold">
+                            <FaStar className="w-3 h-3" />
+                            {restaurantDetails.avgRating?.toFixed(1) || 'New'}
                         </div>
                     </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MdPhone className="w-4 h-4" />
+                        <span>{restaurantDetails.phone || 'No phone'}</span>
+                        <span className="mx-2">•</span>
+                        <MdAccessTime className="w-4 h-4" />
+                        <span>{restaurantDetails.openingTime || '00:00'} - {restaurantDetails.closingTime || '00:00'}</span>
+                    </div>
                 </div>
             </motion.div>
 
+            {/* Edit Details Card */}
             <motion.div
-                className="flex flex-col max-w-6xl mx-auto bg-white rounded-3xl shadow-2xl p-4 sm:p-6"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
             >
-                <h2 className="text-xl sm:text-3xl font-semibold mb-3 sm:mb-4">{isEditing ? 'Edit Restaurant Details' : 'Restaurant Details'}</h2>
-                <div className="flex flex-col gap-3 sm:gap-4">
-                    {Object.entries(detailFields).map(([label, key]) => (
-                        <InputField
-                            key={key}
-                            label={label}
-                            value={restaurantDetails[key]}
-                            onChange={(e) => handleFieldChange(key, e.target.value)}
-                            isEditable={isEditing}
-                            type={key.includes("Time") ? "time" : "text"}
-                        />
-                    ))}
-                </div>
-                <button
-                    onClick={() => (isEditing ? saveChanges() : setIsEditing(true))}
-                    className="mt-4 sm:mt-6 px-4 sm:px-6 py-2 text-base sm:text-xl font-semibold text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors"
-                >
-                    {isEditing ? "Save" : "Edit"}
-                </button>
-            </motion.div>
-            <AnimatePresence>
-                {showPopup && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4 z-50">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.7 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.7 }}
-                            transition={{ duration: 0.2 }}
-                            className="bg-white relative p-4 rounded shadow-lg w-full max-w-md"
+                <div className="flex items-center justify-between mb-5">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        {isEditing ? 'Edit Details' : 'Restaurant Details'}
+                    </h3>
+                    {!isEditing && (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                         >
-                            <h3 className="text-lg sm:text-xl font-bold mb-4">Edit Profile Picture</h3>
-                            <IoIosCloseCircle
-                                onClick={() => setShowPopup(false)}
-                                className="absolute top-2 right-2 bg-red-500 text-white text-xl cursor-pointer rounded-full hover:bg-red-600"
-                            />
-                            <img
-                                src={selectedImage ? URL.createObjectURL(selectedImage) : restaurantDetails.image}
-                                alt="Selected"
-                                className="w-full h-48 sm:h-64 object-contain rounded mb-4"
-                            />
-                            <div className="flex justify-between gap-4 mt-4">
+                            <MdEdit className="w-4 h-4" />
+                            Edit
+                        </button>
+                    )}
+                </div>
+
+                <div className="space-y-4">
+                    {Object.entries(detailFields).map(([label, key]) => {
+                        const Icon = fieldIcons[key] || MdStore;
+                        const isTime = key.includes("Time");
+                        return (
+                            <div key={key}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+                                <div className="relative">
+                                    <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type={isTime ? "time" : "text"}
+                                        value={restaurantDetails[key] || ''}
+                                        onChange={(e) => handleFieldChange(key, e.target.value)}
+                                        disabled={!isEditing}
+                                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border transition-all ${
+                                            isEditing 
+                                                ? 'border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20' 
+                                                : 'border-gray-100 bg-gray-50 text-gray-600'
+                                        }`}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {isEditing && (
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={() => setIsEditing(false)}
+                            className="flex-1 py-2.5 px-4 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex-1 py-2.5 px-4 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                            {isSaving ? (
+                                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <MdCheck className="w-5 h-5" />
+                                    Save Changes
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
+            </motion.div>
+
+            {/* Image Upload Modal */}
+            <AnimatePresence>
+                {showImageModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                        >
+                            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                                <h3 className="text-lg font-semibold text-gray-900">Update Restaurant Image</h3>
                                 <button
-                                    onClick={() => document.getElementById('imageInput').click()}
-                                    className="flex-1 bg-blue-500 px-4 py-2 text-white rounded hover:bg-blue-600 text-sm sm:text-base transition-colors"
+                                    onClick={handleCloseModal}
+                                    className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
                                 >
-                                    Select
+                                    <MdClose className="w-5 h-5 text-gray-500" />
                                 </button>
+                            </div>
+                            <div className="p-5">
+                                {/* Show cropped preview or upload prompt */}
+                                {croppedImage ? (
+                                    <>
+                                        <div className="relative h-48 bg-gray-900 rounded-xl overflow-hidden mb-4">
+                                            <img
+                                                src={croppedImage}
+                                                alt="Cropped Preview"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <p className="text-sm text-green-600 text-center mb-4 flex items-center justify-center gap-1">
+                                            <span className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                <MdCheck className="w-3 h-3 text-white" />
+                                            </span>
+                                            Image cropped and ready
+                                        </p>
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="w-full py-2 text-sm text-gray-500 hover:text-orange-500 transition-colors mb-4"
+                                        >
+                                            Choose a different image
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-full h-40 border-2 border-dashed border-gray-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all flex flex-col items-center justify-center gap-3 mb-4 group"
+                                    >
+                                        <div className="w-14 h-14 bg-gray-100 group-hover:bg-orange-100 rounded-full flex items-center justify-center transition-colors">
+                                            <MdCloudUpload className="w-7 h-7 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-medium text-gray-700">Click to select image</p>
+                                            <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 5MB</p>
+                                        </div>
+                                    </button>
+                                )}
+                                
                                 <input
+                                    ref={fileInputRef}
                                     type="file"
-                                    id="imageInput"
                                     accept="image/*"
                                     onChange={handleImageSelect}
                                     className="hidden"
                                 />
-                                <button
-                                    onClick={handleUpdateImage}
-                                    className="flex-1 bg-green-500 px-4 py-2 text-white rounded hover:bg-green-600 text-sm sm:text-base transition-colors"
-                                    disabled={isImageUpdating}
-                                >
-                                    {isImageUpdating ? <BeatLoader color="white" size={8} /> : "Update"}
-                                </button>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={handleCloseModal}
+                                        className="flex-1 py-2.5 px-4 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleUpdateImage}
+                                        disabled={isImageUpdating || !croppedImage}
+                                        className="flex-1 py-2.5 px-4 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                    >
+                                        {isImageUpdating ? (
+                                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : 'Update'}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
-                    </div>
+                    </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Image Cropper */}
+            <ImageCropper
+                isOpen={showCropper}
+                onClose={() => setShowCropper(false)}
+                imageSrc={selectedImageSrc}
+                onCropComplete={handleCropComplete}
+                aspect={16 / 9}
+                title="Crop Restaurant Image"
+            />
         </div>
     );
 };
@@ -232,10 +386,9 @@ RestaurantEdit.propTypes = {
         openingTime: PropTypes.string,
         closingTime: PropTypes.string,
         image: PropTypes.string,
-        isActive: PropTypes.bool
+        isActive: PropTypes.bool,
+        avgRating: PropTypes.number
     }).isRequired,
-    isOpen: PropTypes.bool,
-    toggleShopStatus: PropTypes.func,
     isEditing: PropTypes.bool.isRequired,
     handleFieldChange: PropTypes.func.isRequired,
     saveChanges: PropTypes.func.isRequired,

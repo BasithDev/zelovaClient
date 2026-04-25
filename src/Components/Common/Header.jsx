@@ -153,7 +153,7 @@ const Header = ({ placeholderText = "Search..." }) => {
 
     return (
         <div className="sticky top-0 z-40 bg-white transition-all duration-300 border-b">
-            <div className="container mx-auto px-4">
+            <div className="px-4">
                 <div className="flex items-center justify-between h-[60px]">
                     <div className="flex-1 max-w-3xl">
                         <div className="relative search-container">

@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaUser } from "react-icons/fa";
-import { RiLockPasswordFill } from "react-icons/ri";
-import { FcGoogle } from "react-icons/fc";
-import PrimaryBtn from '../../Components/Buttons/PrimaryBtn';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
+import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 import { setUserAuth } from '../../Redux/slices/user/authUserSlice';
 import { loginUser } from '../../Services/apiServices';
@@ -14,29 +11,44 @@ import { loginUser } from '../../Services/apiServices';
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-    const handleLogin = async () => {
+    const handleLogin = async (e) => {
+        e?.preventDefault();
+        if (!email.trim()) {
+            toast.error('Please enter your email');
+            return;
+        }
         if (!passwordRegex.test(password)) {
             toast.error('Password does not meet the required criteria.');
             return;
         }
+        
+        setIsLoading(true);
         try {
             const response = await loginUser({ email, password });
-            const { Id,token, isVendor,status } = response.data;
-            const userId = Id
-            if (isVendor) {
-                dispatch(setUserAuth({  userId,token, isVendor, status }));
-                navigate('/role-select', { replace: true });
-            } else {
-                dispatch(setUserAuth({  userId,token, isVendor, status }));
-                navigate('/');
-            }
+            const { userId, accessToken, isVendor, userStatus } = response.data;
+            const status = userStatus || 'active';
+            
+            dispatch(setUserAuth({ 
+                userId, 
+                accessToken,
+                isVendor, 
+                status 
+            }));
+            
+            // Always redirect to home page - user can switch to vendor via sidebar
+            navigate('/', { replace: true });
         } catch (error) {
-            toast.error(error.response?.data?.message);
+            console.error('[Login] Error:', error);
+            toast.error(error.response?.data?.message || 'Login failed');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -44,88 +56,142 @@ const Login = () => {
         window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`;
     };
 
-
     return (
-        <div className="flex flex-col md:flex-row h-screen w-full">
-            <ToastContainer position="top-right" />
-            
-            <div className="bg-orange-200 w-full md:w-1/3 flex items-center justify-center rounded-none md:rounded-r-xl py-6 md:py-0">
-                <div className="text-6xl md:text-9xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-transparent bg-clip-text">
-                    Z
+        <div className="min-h-screen flex bg-white">
+            {/* Left - Branding Section */}
+            <div className="hidden lg:flex lg:w-2/5 relative bg-gradient-to-br from-orange-400 to-orange-500">
+                {/* Content */}
+                <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 text-white">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="text-center"
+                    >
+                        <h1 className="text-6xl font-black mb-3">Zelova</h1>
+                        <p className="text-lg opacity-90">
+                            Delicious food, delivered fast
+                        </p>
+                    </motion.div>
                 </div>
             </div>
-            
-            <motion.div
-                className="w-full md:w-2/3 flex flex-col justify-center items-center h-screen bg-white p-6 md:p-8 rounded-none md:rounded-l-lg shadow-lg"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.5 }}
-            >
-                <h1 className="text-2xl md:text-3xl font-bold mb-2">Welcome!</h1>
-                <p className="text-gray-500 mb-4 md:mb-6">Please sign in to your account to continue</p>
-                
-                <div className="w-full max-w-sm px-4">
-                <div className="flex items-center mb-4">
-                        <div className="bg-orange-200 p-3.5 rounded-l-lg">
-                            <FaUser className="text-orange-500" />
+
+            {/* Right - Login Form */}
+            <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="w-full max-w-md"
+                >
+                    {/* Mobile Logo */}
+                    <div className="lg:hidden text-center mb-8">
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
+                            Zelova
+                        </h1>
+                    </div>
+
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+                        <p className="text-gray-500 mt-1">Sign in to continue</p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        {/* Email Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Email
+                            </label>
+                            <div className="relative">
+                                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter your email"
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                                />
+                            </div>
                         </div>
-                        <input 
-                            type="text" 
-                            placeholder="Email ID" 
-                            value={email} 
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full p-[9px] border border-gray-300 rounded-r-lg focus:outline-none bg-white bg-opacity-50" 
-                        />
-                    </div>
-                    
-                    <div className="flex items-center mb-4">
-                        <div className="bg-orange-200 p-3.5 rounded-l-lg">
-                            <RiLockPasswordFill className="text-orange-500" />
+
+                        {/* Password Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter your password"
+                                    className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </div>
-                        <input 
-                            type="password" 
-                            placeholder="Password" 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full p-[9px] border border-gray-300 rounded-r-lg focus:outline-none bg-white bg-opacity-50" 
-                        />
+
+                        {/* Forgot Password */}
+                        <div className="text-right">
+                            <Link 
+                                to="/forgot-password" 
+                                replace
+                                className="text-sm text-orange-500 hover:text-orange-600 font-medium"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
+
+                        {/* Login Button */}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Signing in...
+                                </>
+                            ) : (
+                                'Sign In'
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-4 my-6">
+                        <div className="flex-1 h-px bg-gray-200" />
+                        <span className="text-sm text-gray-400">or</span>
+                        <div className="flex-1 h-px bg-gray-200" />
                     </div>
-                    
-                    <div className="text-center mb-4">
-                        <Link replace to="/forgot-password">
-                            <span className="text-gray-500">Forgot Password? <span className="underline text-blue-500">Click Here</span></span>
-                        </Link>
-                    </div>
-                    
-                    <PrimaryBtn
-                        text="Login"
-                        onClick={handleLogin}
-                        className="w-full bg-orange-500 hover:bg-orange-600 transition-all duration-300 text-white text-lg md:text-xl font-bold py-2 rounded-lg mb-4"
-                    />
-                    
-                    <div className="flex items-center mb-4">
-                        <hr className="w-full border-gray-300" />
-                        <span className="px-2 text-gray-500">OR</span>
-                        <hr className="w-full border-gray-300" />
-                    </div>
-                    
+
+                    {/* Google Login */}
                     <button
                         onClick={handleGoogleLogin}
-                        className="w-full bg-white border border-gray-300 hover:bg-gray-100 transition-all duration-200 text-gray-700 py-2 rounded-lg flex items-center justify-center mb-4"
+                        className="w-full py-3 bg-white border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
                     >
-                        <FcGoogle className="mr-2 text-lg md:text-2xl" />
-                        Sign In Using Google Account
+                        <FcGoogle className="w-5 h-5" />
+                        Continue with Google
                     </button>
-                    
-                    <div className="text-center">
-                        <span className="text-gray-500">Create New Account? </span>
-                        <Link replace to="/register">
-                            <span className="text-blue-500 underline">Sign Up</span>
+
+                    {/* Sign Up Link */}
+                    <p className="text-center mt-6 text-gray-500">
+                        Don't have an account?{' '}
+                        <Link to="/register" replace className="text-orange-500 hover:text-orange-600 font-medium">
+                            Sign up
                         </Link>
-                    </div>
-                </div>
-            </motion.div>
+                    </p>
+                </motion.div>
+            </div>
         </div>
     );
 };

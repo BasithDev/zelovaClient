@@ -1,7 +1,7 @@
 import PrimaryBtn from '../../../Components/Buttons/PrimaryBtn';
 import { useState, useEffect } from "react";
 import { addCategory, addSubCategory, getCategories } from '../../../Services/apiServices'
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 const AddFoodCategories = () => {
     const [mainCategory, setMainCategory] = useState('');
     const [categories, setCategories] = useState([]);

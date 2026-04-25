@@ -1,16 +1,16 @@
-import { FaBell, FaSearch, FaClipboardList, FaStoreAlt,FaExclamationCircle } from "react-icons/fa";
+import { FaClipboardList, FaSearch, FaStoreAlt, FaExclamationCircle } from "react-icons/fa";
 import { MdDashboard, MdShoppingBasket, MdLocalOffer, MdEmail } from 'react-icons/md';
 import { LuUsers } from 'react-icons/lu';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useState, useEffect, useMemo } from "react";
 import { getVendorPendingRequestsCount } from "../../Services/apiServices";
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminSearchBar = () => {
   const adminData = useSelector((state) => state.adminData.data);
-  const location = useLocation()
-  const navigate = useNavigate()
+  const location = useLocation();
+  const navigate = useNavigate();
   const [pendingRequests, setPendingRequests] = useState(0);
   const availablePages = useMemo(() => [
     'dashboard',
@@ -59,70 +59,103 @@ const AdminSearchBar = () => {
     setSearchQuery('');
   };
 
+  // Display name - show email if fullname not available, or "Admin" if loading
+  const displayName = adminData?.fullname || adminData?.email || "Admin";
+  const displayInitial = displayName.charAt(0).toUpperCase();
+
   return (
-    <div className="flex bg-white justify-between border-b-2 p-3 items-center mb-3">
-      <div className="relative w-1/2">
+    <div className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30">
+      {/* Search */}
+      <div className="relative w-96">
         <div className="relative">
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search pages..."
             value={searchQuery}
             onChange={handleSearchChange}
-            className="pl-10 pr-4 py-3 w-full rounded-full border border-gray-300 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           />
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl" />
-          {filteredPages.length > 0 ? (
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm" />
+        </div>
+        
+        <AnimatePresence>
+          {filteredPages.length > 0 && (
             <motion.ul 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute bg-white border border-gray-300 w-full mt-1 z-50 rounded-md shadow-lg">
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute bg-white border border-slate-200 w-full mt-2 z-50 rounded-lg shadow-lg overflow-hidden"
+            >
               {filteredPages.map((page, index) => (
-                <motion.li 
+                <li 
                   key={index} 
                   onClick={() => handlePageClick(page)} 
-                  className="cursor-pointer hover:bg-gray-100 p-2 flex items-center">
+                  className="cursor-pointer hover:bg-slate-50 px-3 py-2.5 flex items-center text-sm transition-colors"
+                >
                   {page === 'dashboard' && <MdDashboard className="mr-2 text-blue-500" />}
-                  {page.includes('user') && <LuUsers className="mr-2 text-green-500" />}
-                  {page.includes('issue') && <FaExclamationCircle className="mr-2 text-red-500" />}
+                  {page.includes('user') && !page.includes('issue') && <LuUsers className="mr-2 text-emerald-500" />}
+                  {page.includes('issue') && <FaExclamationCircle className="mr-2 text-rose-500" />}
                   {page.includes('vendor') && <FaStoreAlt className="mr-2 text-orange-500" />}
-                  {page.includes('category') && <MdShoppingBasket className="mr-2 text-red-500" />}
-                  {page.includes('coupon') && <MdLocalOffer className="mr-2 text-yellow-500" />}
+                  {page.includes('category') && <MdShoppingBasket className="mr-2 text-purple-500" />}
+                  {page.includes('coupon') && <MdLocalOffer className="mr-2 text-amber-500" />}
                   {page.includes('mail') && <MdEmail className="mr-2 text-teal-500" />}
                   {page.includes('requests') && <FaClipboardList className="mr-2 text-pink-500" />}
-                  <span>{page.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                </motion.li>
+                  <span className="text-slate-700">{page.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                </li>
               ))}
             </motion.ul>
-          ) : (
-            searchQuery && filteredPages.length === 0 && (
-              <div className="absolute bg-white border border-gray-300 w-full mt-1 z-50 rounded-md shadow-lg p-2 text-center cursor-pointer hover:bg-gray-100" 
-              onClick={() => handlePageClick('dashboard')}>
-                Option not available, would you like to go to <span className="text-blue-500 font-bold">Dashboard</span>?
-              </div>
-            )
           )}
-        </div>
+          
+          {searchQuery && filteredPages.length === 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute bg-white border border-slate-200 w-full mt-2 z-50 rounded-lg shadow-lg p-3 text-center text-sm cursor-pointer hover:bg-slate-50" 
+              onClick={() => handlePageClick('dashboard')}
+            >
+              <span className="text-slate-500">No match found. Go to </span>
+              <span className="text-blue-600 font-medium">Dashboard</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <div className="flex items-center space-x-4">
-        <div className="relative">
-          <FaBell 
-          onClick={()=>navigate('/admin/requests')}
-          className={`text-yellow-500 ${location.pathname === '/admin/requests' ? 'bg-blue-500' : 'hover:bg-blue-400'} cursor-pointer transition-all duration-200 text-4xl p-2 rounded-full`}
-          />
+
+      {/* Right Section */}
+      <div className="flex items-center gap-4">
+        {/* Vendor Requests Button - Using Clipboard Icon */}
+        <button
+          onClick={() => navigate('/admin/requests')}
+          className={`relative p-2 rounded-lg transition-colors ${
+            location.pathname === '/admin/requests' 
+              ? 'bg-blue-100 text-blue-600' 
+              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+          }`}
+          title="Vendor Requests"
+        >
+          <FaClipboardList className="text-xl" />
           {pendingRequests > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-              {pendingRequests}
+            <span className="absolute -top-0.5 -right-0.5 bg-rose-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
+              {pendingRequests > 9 ? '9+' : pendingRequests}
             </span>
           )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <div>
-            <p className="font-semibold text-xl">{adminData?.fullname || "admin name"}</p>
+        </button>
+
+        {/* Admin Profile */}
+        <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <span className="text-white font-medium text-sm">{displayInitial}</span>
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-sm font-medium text-slate-900 truncate max-w-[150px]">
+              {displayName}
+            </p>
+            <p className="text-xs text-slate-400">Administrator</p>
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AdminSearchBar
+export default AdminSearchBar;

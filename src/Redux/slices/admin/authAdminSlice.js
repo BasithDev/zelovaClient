@@ -1,27 +1,39 @@
 import { createSlice } from '@reduxjs/toolkit';
-import Cookies from 'js-cookie';
 
-const adminToken = Cookies.get('admin_token');
+/**
+ * Admin auth state - stored in memory only for XSS protection
+ * Refresh token is stored as HTTP-only cookie (invisible to JS)
+ */
+
+const getInitialState = () => ({
+  adminId: null,
+  accessToken: null,  // Memory only - NOT in cookies
+  isAuthenticated: false,
+  isInitializing: true,
+});
 
 const authAdminSlice = createSlice({
   name: 'authAdmin',
-  initialState: {
-    adminId:null,
-    isAuthenticated: !!adminToken,
-    token: adminToken || null,
-  },
+  initialState: getInitialState(),
   reducers: {
-    setAdminAuth(state,action) {
-      state.adminId = action.payload.adminId
+    setAdminAuth(state, action) {
+      const { adminId, accessToken } = action.payload;
+      state.adminId = adminId;
+      state.accessToken = accessToken;  // Memory only!
       state.isAuthenticated = true;
+      state.isInitializing = false;
     },
     logoutAdmin(state) {
-      state.adminId = null
+      state.adminId = null;
+      state.accessToken = null;
       state.isAuthenticated = false;
-      Cookies.remove('admin_token');
+      state.isInitializing = false;
     },
+    setAdminInitialized(state) {
+      state.isInitializing = false;
+    }
   },
 });
 
-export const { setAdminAuth, logoutAdmin } = authAdminSlice.actions;
+export const { setAdminAuth, logoutAdmin, setAdminInitialized } = authAdminSlice.actions;
 export default authAdminSlice.reducer;

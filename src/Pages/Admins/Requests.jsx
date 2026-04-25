@@ -1,16 +1,45 @@
-import { useQuery, useMutation , useQueryClient} from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { toast } from 'react-toastify';
-import { ToastContainer } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminSearchBar from "../../Components/SearchBar/AdminSearchBar";
 import { AnimatePresence, motion } from 'framer-motion';
-import { BeatLoader } from 'react-spinners';
+import { FiCheck, FiX, FiEye, FiMail, FiMapPin, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FaStoreAlt } from 'react-icons/fa';
+import { HiOutlineClipboardList } from 'react-icons/hi';
 import { acceptVenodrRequests, deleteImage, denyVenodrRequests, fetchVendorRequests } from '../../Services/apiServices';
 
+// Skeleton Loader
+const RequestSkeleton = () => (
+    <div className="bg-white rounded-xl border border-slate-200 p-5 animate-pulse">
+        <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-slate-200" />
+            <div className="flex-1 space-y-2">
+                <div className="h-4 w-40 bg-slate-200 rounded" />
+                <div className="h-3 w-32 bg-slate-200 rounded" />
+            </div>
+        </div>
+    </div>
+);
+
+// Empty State
+const EmptyState = () => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center py-20"
+    >
+        <div className="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center">
+            <FiCheck className="w-8 h-8 text-emerald-500" />
+        </div>
+        <h2 className="text-lg font-semibold text-slate-900 mb-1">All caught up!</h2>
+        <p className="text-slate-500 text-sm">No pending vendor requests at the moment.</p>
+    </motion.div>
+);
+
 const fetchVendorApplications = async () => {
-    const { data } = await fetchVendorRequests()
+    const { data } = await fetchVendorRequests();
     return data;
 };
 
@@ -23,198 +52,254 @@ const Requests = () => {
         refetchInterval: 10000
     });
 
-    if (isLoading) return <p>Loading...</p>;
-    if (isError) return <p>Error loading vendor requests</p>;
+    const pendingCount = applications?.length || 0;
 
     return (
-        <div className="pb-3 bg-gray-100 min-h-screen transition-all duration-300">
-            <ToastContainer position="top-right" />
+        <div className="min-h-screen bg-slate-50">
             <AdminSearchBar />
-            <h1 className="text-2xl mx-3 font-bold mb-4">Vendors Request</h1>
-            <div className="space-y-4">
-                {applications && applications.length > 0 ? (
-                    applications.map((application) => (
-                        <VendorApplicationCard key={application._id} application={application} refetchApplications={refetch} />
-                    ))
-                ) : (
-                    <p className="text-center">No vendor applications available.</p>
-                )}
+            
+            <div className="px-6 py-6">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <HiOutlineClipboardList className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-900">Vendor Requests</h1>
+                            <p className="text-slate-500 text-sm">
+                                {pendingCount} pending {pendingCount === 1 ? 'request' : 'requests'}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => refetch()}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+                    >
+                        Refresh
+                    </button>
+                </div>
+
+                {/* Requests List */}
+                <div className="space-y-3">
+                    <AnimatePresence mode="popLayout">
+                        {isLoading ? (
+                            <>
+                                <RequestSkeleton />
+                                <RequestSkeleton />
+                            </>
+                        ) : isError ? (
+                            <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center">
+                                <p className="text-rose-600">Error loading requests. Please try again.</p>
+                            </div>
+                        ) : applications && applications.length > 0 ? (
+                            applications.map((application) => (
+                                <VendorApplicationCard key={application._id} application={application} />
+                            ))
+                        ) : (
+                            <EmptyState />
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
         </div>
     );
 };
 
 const VendorApplicationCard = ({ application }) => {
-
-    
     const [isExpanded, setIsExpanded] = useState(false);
     const queryClient = useQueryClient();
+
     const acceptMutation = useMutation({
         mutationFn: async (requestId) => {
-            await acceptVenodrRequests(requestId)
-            await deleteImage({public_id:application.license.public_id})
+            await acceptVenodrRequests(requestId);
+            if (application.license?.public_id) {
+                await deleteImage({ public_id: application.license.public_id });
+            }
         },
-        onSuccess: async () => {
-            toast.success("Vendor request accepted!");
-            queryClient.setQueryData(['vendorApplications'], (oldApplications) => 
-                oldApplications.filter((app) => app._id !== application._id)
+        onSuccess: () => {
+            toast.success("Request accepted!");
+            queryClient.setQueryData(['vendorApplications'], (old) =>
+                old?.filter((app) => app._id !== application._id) || []
             );
         },
-        onError: () => {
-            toast.error("Error accepting vendor request.");
-        }
+        onError: () => toast.error("Failed to accept request.")
     });
+
     const denyMutation = useMutation({
         mutationFn: async (applicationId) => {
-            await denyVenodrRequests(applicationId)
-            await deleteImage({public_id:application.license.public_id})
+            await denyVenodrRequests(applicationId);
+            if (application.license?.public_id) {
+                await deleteImage({ public_id: application.license.public_id });
+            }
         },
-        onSuccess: async() => {
-            toast.success("Vendor request denied!");
-            queryClient.setQueryData(['vendorApplications'], (oldApplications) => 
-                oldApplications.filter((app) => app._id !== application._id)
+        onSuccess: () => {
+            toast.success("Request denied!");
+            queryClient.setQueryData(['vendorApplications'], (old) =>
+                old?.filter((app) => app._id !== application._id) || []
             );
         },
-        onError: () => {
-            toast.error("Error denying vendor request.");
-        }
+        onError: () => toast.error("Failed to deny request.")
     });
-    const toggleDetails = () => setIsExpanded(!isExpanded);
 
+    const isProcessing = acceptMutation.isPending || denyMutation.isPending;
 
     return (
-        <motion.div 
+        <motion.div
             layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="bg-white mx-3 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 flex flex-col items-start"
+            exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+            className="bg-white rounded-xl border border-slate-200 overflow-hidden"
         >
-            <div className="flex items-center">
-                <img src={application.user.profilePicture || "https://placehold.co/60x60"} alt={`Profile of ${application.user.fullname}`} className="w-16 h-16 rounded-full mr-4 border border-gray-300 shadow-sm" />
-                <div className="flex-1">
-                    <h2 className="text-xl font-semibold">{application.user.fullname}</h2>
-                    <p className="text-gray-600">{application.restaurantName}</p>
-                    <p className="text-gray-600">{application.user.email}</p>
+            {/* Header Row */}
+            <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <img
+                        src={application.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(application.user.fullname)}&background=3B82F6&color=fff`}
+                        alt=""
+                        className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+                    />
+                    <div className="min-w-0">
+                        <h3 className="font-semibold text-slate-900 truncate">{application.user.fullname}</h3>
+                        <p className="text-sm text-blue-600 truncate flex items-center gap-1">
+                            <FaStoreAlt size={12} />
+                            {application.restaurantName}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 flex-shrink-0">
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
+                    >
+                        <FiEye size={14} />
+                        {isExpanded ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                    </button>
+                    <button
+                        onClick={() => acceptMutation.mutate(application._id)}
+                        disabled={isProcessing}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                        <FiCheck size={14} />
+                        Accept
+                    </button>
+                    <button
+                        onClick={() => denyMutation.mutate(application._id)}
+                        disabled={isProcessing}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50"
+                    >
+                        <FiX size={14} />
+                        Deny
+                    </button>
                 </div>
             </div>
-            <div className="flex space-x-2 mt-4">
-                <button
-                    onClick={toggleDetails}
-                    className="font-semibold text-lg transition-all duration-300 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transform hover:scale-105"
-                >
-                    {isExpanded ? "Close" : "View"}
-                </button>
-                <button
-                    onClick={() => acceptMutation.mutate(application._id)}
-                    className="font-semibold text-lg transition-all duration-300 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transform hover:scale-105"
-                >
-                    {acceptMutation.isPending ? <BeatLoader color="#FFF" size={10} /> : "Accept"}
-                </button>
-                <button
-                    onClick={() => denyMutation.mutate(application._id)}
-                    className="font-semibold text-lg transition-all duration-300 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transform hover:scale-105"
-                >
-                    {denyMutation.isPending ? <BeatLoader color="#FFF" size={10} /> : "Deny"}
-                </button>
-            </div>
+
+            {/* Expanded Details */}
             <AnimatePresence>
                 {isExpanded && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="mt-4 bg-gray-100 rounded-md shadow-xl p-4 w-full border-t border-gray-200"
+                        initial={{ height: 0 }}
+                        animate={{ height: "auto" }}
+                        exit={{ height: 0 }}
+                        className="overflow-hidden border-t border-slate-100"
                     >
-                        <p><strong>License</strong></p>
-                        <ImageZoom src={application.license.url} alt="License Image" />
-                        <p><strong>Restaurant Name:</strong> {application.restaurantName}</p>
-                        <p><strong>Address:</strong> {application.address}</p>
-                        <p><strong>Description:</strong> {application.description}</p>
+                        <div className="p-4 bg-slate-50 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {/* Info */}
+                            <div className="space-y-3">
+                                <div className="bg-white rounded-lg p-3">
+                                    <p className="text-xs text-slate-400 mb-1">Email</p>
+                                    <p className="text-sm text-slate-700 flex items-center gap-1">
+                                        <FiMail size={12} className="text-slate-400" />
+                                        {application.user.email}
+                                    </p>
+                                </div>
+                                <div className="bg-white rounded-lg p-3">
+                                    <p className="text-xs text-slate-400 mb-1">Address</p>
+                                    <p className="text-sm text-slate-700 flex items-start gap-1">
+                                        <FiMapPin size={12} className="text-slate-400 mt-0.5" />
+                                        {application.address || "Not provided"}
+                                    </p>
+                                </div>
+                                <div className="bg-white rounded-lg p-3">
+                                    <p className="text-xs text-slate-400 mb-1">Description</p>
+                                    <p className="text-sm text-slate-700">
+                                        {application.description || "No description"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* License */}
+                            <div>
+                                <p className="text-xs text-slate-400 mb-2">License Document</p>
+                                <LicenseViewer src={application.license?.url} />
+                            </div>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
         </motion.div>
     );
 };
-const ImageZoom = ({ src, alt }) => {
-    const [isZoomed, setIsZoomed] = useState(false);
-    const [isLoading,setIsLoading] = useState(true)
-    const [backgroundPosition, setBackgroundPosition] = useState('50% 50%');
-    const imageRef = useRef(null);
-    const toggleZoom = () => setIsZoomed((prev) => !prev);
-    const handleMouseMove = (e) => {
-        const rect = imageRef.current.getBoundingClientRect();
+
+const LicenseViewer = ({ src }) => {
+    const [zoom, setZoom] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [bgPos, setBgPos] = useState('50% 50%');
+    const imgRef = useRef(null);
+
+    const handleMove = (e) => {
+        if (!imgRef.current) return;
+        const rect = imgRef.current.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
-        setBackgroundPosition(`${x}% ${y}%`);
+        setBgPos(`${x}% ${y}%`);
     };
-    const handleImageLoad = () => {
-        setIsLoading(false); // Image has loaded, stop showing spinner
-    };
+
+    if (!src) return <div className="bg-slate-200 rounded-lg h-48 flex items-center justify-center text-slate-400 text-sm">No license uploaded</div>;
+
     return (
-        <div className="flex bg-white p-3 w-fit rounded-2xl space-x-4">
+        <div className="flex flex-col lg:flex-row gap-3">
             <div
-                className="relative w-96 h-96 overflow-hidden border border-gray-300 rounded-lg"
-                onMouseMove={handleMouseMove}
-                onClick={toggleZoom}
-                ref={imageRef}
-                style={{
-                    cursor: 'zoom-in',
-                    transition: 'transform 0.3s ease',
-                }}
+                ref={imgRef}
+                className="relative w-full lg:w-64 h-48 rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in"
+                onMouseMove={handleMove}
+                onClick={() => setZoom(!zoom)}
             >
-                {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                        <BeatLoader color="#555" />
+                {loading && (
+                    <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                     </div>
                 )}
                 <img
                     src={src}
-                    alt={alt}
-                    onLoad={handleImageLoad}
+                    alt="License"
+                    onLoad={() => setLoading(false)}
                     className="w-full h-full object-cover"
-                    style={{
-                        transform: isZoomed ? 'scale(1.05)' : 'scale(1)',
-                        transition: 'transform 0.3s ease',
-                    }}
                 />
             </div>
-            {isZoomed && (
+            {zoom && (
                 <div
-                    className="w-96 h-96 border border-gray-300 rounded-lg shadow-lg overflow-hidden"
+                    className="w-full lg:w-64 h-48 rounded-lg border border-slate-200"
                     style={{
                         backgroundImage: `url(${src})`,
-                        backgroundSize: "200%",  // Increased magnification for zoom
-                        backgroundPosition: backgroundPosition,
-                        backgroundRepeat: 'no-repeat',
-                        transition: 'background-position 0.1s ease',
+                        backgroundSize: "200%",
+                        backgroundPosition: bgPos,
                     }}
-                ></div>
+                />
             )}
         </div>
     );
 };
 
 VendorApplicationCard.propTypes = {
-    application: PropTypes.shape({
-        _id: PropTypes.string.isRequired,
-        restaurantName: PropTypes.string.isRequired,
-        description: PropTypes.string,
-        address: PropTypes.string,
-        license: PropTypes.string.isRequired,
-        user: PropTypes.shape({
-            profilePicture: PropTypes.string,
-            fullname: PropTypes.string.isRequired,
-            email: PropTypes.string.isRequired,
-        }).isRequired,
-    }).isRequired,
-    refetchApplications: PropTypes.func.isRequired,
+    application: PropTypes.object.isRequired,
 };
 
-ImageZoom.propTypes = {
-    src: PropTypes.string.isRequired,
-    alt: PropTypes.string.isRequired,
+LicenseViewer.propTypes = {
+    src: PropTypes.string,
 };
+
 export default Requests;

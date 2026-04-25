@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {verifyOTP,resendOTP} from '../../Services/apiServices'
 import PrimaryBtn from '../../Components/Buttons/PrimaryBtn';
 import { motion } from 'framer-motion';
-import { toast, ToastContainer } from 'react-hot-toast';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-hot-toast';
 
 const Otp = () => {
     const location = useLocation();
@@ -42,7 +41,6 @@ const Otp = () => {
 
     return (
         <div className="flex flex-col lg:flex-row min-h-screen">
-            <ToastContainer />
             <div className="bg-orange-200 w-full lg:w-[480px] h-[120px] lg:h-auto flex items-center justify-center lg:rounded-r-xl">
                 <div className="text-7xl lg:text-9xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-transparent bg-clip-text">Z</div>
             </div>

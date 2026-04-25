@@ -2,8 +2,6 @@ import { useState} from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
-import { ToastContainer } from 'react-hot-toast';
-import 'react-toastify/dist/ReactToastify.css';
 import * as Yup from 'yup';
 import { BeatLoader } from 'react-spinners';
 import { registerUser } from '../../Services/apiServices';
@@ -80,7 +78,6 @@ const Register = () => {
 
     return (
         <div className="flex flex-col lg:flex-row min-h-screen">
-            <ToastContainer position="top-right" autoClose={2000} />
             <div className="bg-orange-200 lg:w-[480px] w-full h-[120px] lg:h-auto flex items-center justify-center lg:rounded-r-xl">
                 <div className="text-7xl lg:text-9xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-transparent bg-clip-text">Z</div>
             </div>

@@ -7,7 +7,7 @@ import { HiOutlinePhotograph } from 'react-icons/hi';
 import { addProduct, getOffers, getSubCategories, getCategories } from '../../Services/apiServices';
 import SearchableDropdown from '../../Components/Common/SearchableDropdown';
 import ImageCropper from '../../Components/Common/ImageCropper';
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-hot-toast";
 import { uploadImageToCloud } from '../../Helpers/uploadImageToCloud';
 
 const AddItem = () => {
@@ -232,8 +232,6 @@ const AddItem = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <ToastContainer position="top-right" />
-      
       {/* Header */}
       <div className="bg-white border-b border-slate-200">
         <div className="px-4 lg:px-6 py-4">

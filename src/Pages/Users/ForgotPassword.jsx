@@ -5,8 +5,7 @@ import PrimaryBtn from '../../Components/Buttons/PrimaryBtn';
 import { MdAlternateEmail } from "react-icons/md";
 import { RiLockPasswordFill } from "react-icons/ri";
 import { FaKey } from "react-icons/fa";
-import { ToastContainer, toast } from 'react-hot-toast';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-hot-toast';
 import { BeatLoader } from 'react-spinners';
 import { useNavigate } from 'react-router-dom';
 import { sendOTPForResetPassword,verifyOTPForResetPassword, resetPassword } from '../../Services/apiServices';
@@ -75,7 +74,6 @@ const ForgotPassword = () => {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
-      <ToastContainer position='top-right'/>
       <div className="bg-orange-200 w-full lg:w-[480px] h-[120px] lg:h-auto flex items-center justify-center lg:rounded-r-xl">
         <div className="text-7xl lg:text-9xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-transparent bg-clip-text">Z</div>
       </div>
